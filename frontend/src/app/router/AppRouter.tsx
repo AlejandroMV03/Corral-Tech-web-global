@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import AppLayout from "../../components/layout/AppLayout";
@@ -12,14 +13,37 @@ import AuditoriaGlobalPage from "../../features/auditoria-global/pages/Auditoria
 import ConfiguracionPage from "../../features/configuracion/pages/ConfiguracionPage";
 
 export default function AppRouter() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const handleLoginSuccess = () => setIsAuthenticated(true);
+  const handleLogout = () => setIsAuthenticated(false);
+
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route 
+        path="/login" 
+        element={
+          !isAuthenticated ? (
+            <LoginPage onLoginSuccess={handleLoginSuccess} />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        } 
+      />
 
-      <Route path="/" element={<AppLayout />}>
+      <Route 
+        path="/" 
+        element={
+          isAuthenticated ? (
+            <AppLayout onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardGlobalPage />} />
-        <Route path="ranchos" element={<RanchosPage />} />
+        <Route path="ranchos" element={<div className="p-6"><h1 className="text-2xl font-bold text-[#264575]">Lista de Ranchos </h1></div>} />
+        <Route path="ranchos/crear" element={<RanchosPage />} />
         <Route path="usuarios-plataforma" element={<UsuariosPlataformaPage />} />
         <Route path="usuarios-rancho" element={<UsuariosRanchoPage />} />
         <Route path="roles-permisos" element={<RolesPermisosPage />} />
@@ -27,8 +51,7 @@ export default function AppRouter() {
         <Route path="auditoria" element={<AuditoriaGlobalPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
       </Route>
-
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );
 }
