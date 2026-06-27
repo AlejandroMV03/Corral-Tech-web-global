@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { PlusCircle, ShieldAlert, Key, CheckCircle, XCircle, AlertTriangle, ArrowRight, ArrowLeft } from "lucide-react";
 
-// Mapeo exacto de los planes según la base de datos central de Supabase
 const PLANES_CONFIG: { [key: string]: { maxAnimales: number; maxFotoMb: number; esPersonalizado: boolean } } = {
   "1": { maxAnimales: 50, maxFotoMb: 5, esPersonalizado: false },
   "2": { maxAnimales: 100, maxFotoMb: 5, esPersonalizado: false },
@@ -12,7 +11,6 @@ const PLANES_CONFIG: { [key: string]: { maxAnimales: number; maxFotoMb: number; 
 };
 
 export default function RanchosPage() {
-  // --- CONTROL DE PASOS (STEPPER) ---
   const [step, setStep] = useState(1);
 
   // --- ESTADOS DEL RANCHO ---
@@ -43,7 +41,21 @@ export default function RanchosPage() {
   const [statusType, setStatusType] = useState<"success" | "error">("success");
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Efecto dinámico para actualizar los inputs automáticos al cambiar de plan
+  const tieneDatosIntroducidos = () => {
+    return !!(nombre || propietario || ubicacion || telefono || emailContacto || adminNombres || adminUsername);
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (tieneDatosIntroducidos() && !loading) {
+        e.preventDefault();
+        e.returnValue = "Tiene un proceso de alta en ejecución. Si sale o recarga, la tarea se cancelará.";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [nombre, propietario, ubicacion, telefono, emailContacto, adminNombres, adminUsername, loading]);
+
   useEffect(() => {
     const configPlan = PLANES_CONFIG[idPlan];
     if (configPlan) {
@@ -57,37 +69,61 @@ export default function RanchosPage() {
     }
   }, [idPlan]);
 
-  // Validación segmentada por pasos
+  const handleKeyDownSoloNumeros = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    if (e.key === " " || !/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handleKeyDownSoloLetras = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight", " "].includes(e.key)) return;
+    if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   const validarPaso = () => {
     const nuevosErrores: { [key: string]: string } = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const soloLetrasRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ👤\s]+$/;
 
     if (step === 1) {
-      if (!nombre.trim()) nuevosErrores.nombre = "El nombre del rancho es obligatorio.";
-      if (telefono.trim() && (!/^[0-9]{10}$/.test(telefono.trim()) || /^(.)\1+$/.test(telefono.trim()))) {
-        nuevosErrores.telefono = "Ingrese un número de teléfono válido de 10 dígitos.";
+      if (!nombre.trim()) {
+        nuevosErrores.nombre = "El nombre del rancho es obligatorio.";
+      } else if (nombre.length > 50) {
+        nuevosErrores.nombre = "El nombre del rancho no debe exceder los 50 caracteres (Límite UI)."; 
       }
+
+      if (propietario.trim() && propietario.length > 60) {
+        nuevosErrores.propietario = "El nombre del propietario no debe exceder los 60 caracteres.";
+      }
+
+      if (!telefono.trim()) {
+        nuevosErrores.telefono = "El teléfono de contacto es obligatorio.";
+      } else if (telefono.trim().length !== 10) {
+        nuevosErrores.telefono = "El número telefónico debe tener exactamente 10 dígitos.";
+      }
+
       if (emailContacto.trim() && !emailRegex.test(emailContacto.trim())) {
         nuevosErrores.emailContacto = "El formato del correo de contacto no es válido.";
+      }
+
+      // Validación de negocio para ubicación
+      if (!ubicacion.trim()) {
+        nuevosErrores.ubicacion = "La ubicación geográfica del terreno es obligatoria.";
+      } else if (ubicacion.length < 5 || ubicacion.length > 100) {
+        nuevosErrores.ubicacion = "La ubicación debe ser descriptiva (entre 5 y 100 caracteres).";
       }
     }
 
     if (step === 2) {
-      if (!adminNombres.trim()) {
-        nuevosErrores.adminNombres = "Los nombres del administrador son obligatorios.";
-      } else if (!soloLetrasRegex.test(adminNombres.trim())) {
-        nuevosErrores.adminNombres = "Los nombres solo deben contener letras.";
-      }
-      if (adminApellidos.trim() && !soloLetrasRegex.test(adminApellidos.trim())) {
-        nuevosErrores.adminApellidos = "Los apellidos solo deben contener letras.";
-      }
-      if (!adminUsername.trim()) nuevosErrores.adminUsername = "El username es obligatorio.";
+      if (!adminNombres.trim()) nuevosErrores.adminNombres = "Los nombres del administrador son obligatorios.";
+      if (!adminUsername.trim()) nuevosErrores.adminUsername = "El username de acceso es obligatorio.";
       if (adminEmail.trim() && !emailRegex.test(adminEmail.trim())) {
-        nuevosErrores.adminEmail = "El formato del correo del administrador no es válido.";
+        nuevosErrores.adminEmail = "El formato del correo no es válido.";
       }
       if (!adminPassword.trim() || adminPassword.length < 6) {
-        nuevosErrores.adminPassword = "La contraseña es obligatoria (mínimo 6 caracteres).";
+        nuevosErrores.adminPassword = "La contraseña debe tener mínimo 6 caracteres de seguridad.";
       }
     }
 
@@ -115,13 +151,13 @@ export default function RanchosPage() {
 
   const ejecutarRegistroReal = async () => {
     setShowConfirmModal(false);
-    setLoading(true);
+    setLoading(true); 
     const configPlan = PLANES_CONFIG[idPlan];
 
     const payload = {
       rancho: {
         nombre: nombre.trim(),
-        ubicacion: ubicacion.trim() || null,
+        ubicacion: ubicacion.trim(),
         propietario: propietario.trim() || null,
         telefono: telefono.trim() || null,
         email_contacto: emailContacto.trim() || null,
@@ -141,15 +177,17 @@ export default function RanchosPage() {
 
     try {
       const token = localStorage.getItem("corraltech_token"); 
+      
       await axios.post("http://192.168.1.71:8000/api/v1/master/ranchos", payload, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 8000
       });
 
       setStatusType("success");
-      setStatusMessage(`El rancho "${nombre}" ha sido guardado correctamente junto a los límites automáticos de su plan.`);
+      setStatusMessage(`¡Felicidades! El rancho "${nombre}" y su Súper Administrador se configuraron exitosamente en Supabase.`);
       setShowStatusModal(true);
       
-      // Resetear todo al paso 1 al finalizar con éxito
+      // Limpieza controlada de estados de negocio
       setStep(1);
       setNombre(""); setPropietario(""); setUbicacion(""); setTelefono(""); setEmailContacto("");
       setAdminNombres(""); setAdminApellidos(""); setAdminUsername(""); setAdminEmail(""); setAdminPassword("");
@@ -157,7 +195,17 @@ export default function RanchosPage() {
       setErrors({});
     } catch (error: any) {
       setStatusType("error");
-      setStatusMessage(error.response?.data?.detail || "No se pudo completar el registro debido a un error de comunicación.");
+      
+      if (error.code === "ECONNABORTED") {
+        setStatusMessage("El servidor central tardó demasiado en responder. El proceso fue abortado para evitar la congelación del sistema.");
+      } else if (error.response?.status === 409 || error.response?.data?.detail?.includes("already exists")) {
+        setStatusMessage(`Error de duplicidad: El username "${adminUsername}" o el correo electrónico ya se encuentran registrados en otra cuenta corporativa de CorralTech.`);
+      } else if (error.response?.status === 401) {
+        setStatusMessage("Tu sesión administrativa ha expirado o el token es inválido. Por seguridad, verifica tus credenciales.");
+      } else {
+        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
+      }
+      
       setShowStatusModal(true);
     } finally {
       setLoading(false);
@@ -168,13 +216,12 @@ export default function RanchosPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12 relative">
-      {/* HEADER COHESIVO */}
       <div className="flex flex-col space-y-1">
         <h1 className="text-3xl font-black text-[#264575] tracking-tight">Alta de Rancho y Súper Administrador</h1>
         <p className="text-sm font-medium text-[#885f3a]">Módulo de Administración Global • Integridad con Supabase</p>
       </div>
 
-      {/* INDICADOR VISUAL DE PASOS (STEPPER TRACKER) */}
+      {/* TRACKER DE PASOS */}
       <div className="flex items-center space-x-4 bg-white/60 p-3 rounded-xl border border-gray-100 max-w-md">
         <div className="flex items-center space-x-2">
           <span className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${step === 1 ? "bg-[#822420] text-white" : "bg-green-600 text-white"}`}>
@@ -191,10 +238,9 @@ export default function RanchosPage() {
         </div>
       </div>
 
-      {/* FORMULARIO DINÁMICO COMPACTO */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-8 transition-all duration-300">
         {step === 1 ? (
-          /* PASO 1: DATOS DEL RANCHO (COMPACTO DE 3 COLUMNAS) */
+          /* PASO 1: DATOS DEL RANCHO COMPACTO */
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center space-x-3 border-b border-gray-100 pb-4">
               <PlusCircle className="w-6 h-6 text-[#822420]" />
@@ -202,28 +248,59 @@ export default function RanchosPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-              {/* FILA 1 */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nombre del Rancho *</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.nombre ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} placeholder="Ej. El Rancho Viejo" />
+                <input 
+                  type="text" 
+                  maxLength={50} 
+                  onKeyDown={handleKeyDownSoloLetras}
+                  value={nombre} 
+                  onChange={(e) => setNombre(e.target.value)} 
+                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.nombre ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                  placeholder="Ej. El Rancho Viejo" 
+                />
                 {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
               </div>
               
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Nombre del Propietario Jurídico</label>
-                <input type="text" value={propietario} onChange={(e) => setPropietario(e.target.value)} className="w-full px-4 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm" placeholder="Ej. Andrés Heredia" />
+                <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Propietario Jurídico</label>
+                <input 
+                  type="text" 
+                  maxLength={60} 
+                  onKeyDown={handleKeyDownSoloLetras}
+                  value={propietario} 
+                  onChange={(e) => setPropietario(e.target.value)} 
+                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm ${errors.propietario ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                  placeholder="Ej. Manuel Suarez" 
+                />
+                {errors.propietario && <p className="text-red-500 text-xs mt-1">{errors.propietario}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Teléfono</label>
-                <input type="text" value={telefono} onChange={(e) => setTelefono(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.telefono ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} placeholder="10 dígitos" />
+                <label className="block text-sm font-bold text-gray-700 mb-1">Teléfono *</label>
+                <input 
+                  type="text" 
+                  maxLength={10}
+                  onKeyDown={handleKeyDownSoloNumeros}
+                  value={telefono} 
+                  onChange={(e) => setTelefono(e.target.value)} 
+                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.telefono ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                  placeholder="10 dígitos numéricos" 
+                />
                 {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
               </div>
 
-              {/* FILA 2 - Ubicación y Correo */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Ubicación Geográfica</label>
-                <input type="text" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} className="w-full px-4 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm" placeholder="Dirección o Municipio..." />
+                <label className="block text-sm font-bold text-gray-700 mb-1">Ubicación Geográfica *</label>
+                <input 
+                  type="text" 
+                  maxLength={100}
+                  value={ubicacion} 
+                  onChange={(e) => setUbicacion(e.target.value)} 
+                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.ubicacion ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                  placeholder="Municipio, Estado (Ej. Champotón, Campeche)" 
+                />
+                {errors.ubicacion && <p className="text-red-500 text-xs mt-1">{errors.ubicacion}</p>}
               </div>
 
               <div>
@@ -232,7 +309,6 @@ export default function RanchosPage() {
                 {errors.emailContacto && <p className="text-red-500 text-xs mt-1">{errors.emailContacto}</p>}
               </div>
 
-              {/* FILA 3 - Configuración de límites y planes */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Plan de Rancho</label>
                 <select value={idPlan} onChange={(e) => setIdPlan(e.target.value)} className="w-full px-4 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm text-gray-700 font-medium cursor-pointer">
@@ -255,7 +331,6 @@ export default function RanchosPage() {
               </div>
             </div>
 
-            {/* CONTROL DE CHECKBOX Y BOTÓN INFERIOR */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-gray-100">
               <div className="flex items-center space-x-3">
                 <input type="checkbox" id="catalogos" checked={catalogosPersonalizados} onChange={(e) => setCatalogosPersonalizados(e.target.checked)} className="w-4 h-4 rounded text-[#822420] focus:ring-[#822420] border-gray-300 cursor-pointer" />
@@ -280,12 +355,12 @@ export default function RanchosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Nombres *</label>
-                  <input type="text" value={adminNombres} onChange={(e) => setAdminNombres(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminNombres ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
+                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminNombres} onChange={(e) => setAdminNombres(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminNombres ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
                   {errors.adminNombres && <p className="text-red-500 text-xs mt-1">{errors.adminNombres}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Apellidos</label>
-                  <input type="text" value={adminApellidos} onChange={(e) => setAdminApellidos(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminApellidos ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
+                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminApellidos} onChange={(e) => setAdminApellidos(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminApellidos ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
                   {errors.adminApellidos && <p className="text-red-500 text-xs mt-1">{errors.adminApellidos}</p>}
                 </div>
               </div>
@@ -313,7 +388,7 @@ export default function RanchosPage() {
             </div>
 
             <div className="flex justify-between pt-2 border-t border-gray-100">
-              <button type="button" onClick={handleAtras} className="px-5 py-2.5 border border-gray-300 hover:bg-gray-50 font-bold rounded-xl text-sm text-gray-700 flex items-center space-x-2 transition-all active:scale-95">
+              <button type="button" onClick={handleAtras} disabled={loading} className="px-5 py-2.5 border border-gray-300 hover:bg-gray-50 font-bold rounded-xl text-sm text-gray-700 flex items-center space-x-2 transition-all active:scale-95 disabled:opacity-40">
                 <ArrowLeft className="w-4 h-4" />
                 <span>Atrás</span>
               </button>
@@ -325,7 +400,7 @@ export default function RanchosPage() {
         )}
       </div>
 
-      {/* ================= MODAL 1: CONFIRMACIÓN ================= */}
+      {/* MODAL CONFIRMACIÓN */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">
@@ -335,7 +410,7 @@ export default function RanchosPage() {
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-gray-900">¿Confirmar Alta de Rancho?</h3>
               <p className="text-sm text-gray-500 px-2">
-                Se inicializará el nuevo rancho "{nombre}" bajo el paquete {PLANES_CONFIG[idPlan]?.esPersonalizado ? "Personalizado" : `Limitado ${PLANES_CONFIG[idPlan]?.maxAnimales}`} de forma permanente.
+                Se guardará el rancho "{nombre}" en la base central global de Supabase.
               </p>
             </div>
             <div className="flex space-x-3 pt-2">
@@ -350,7 +425,7 @@ export default function RanchosPage() {
         </div>
       )}
 
-      {/* ================= MODAL 2: ÉXITO / ERROR ================= */}
+      {/* MODAL ÉXITO / ERROR */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">
