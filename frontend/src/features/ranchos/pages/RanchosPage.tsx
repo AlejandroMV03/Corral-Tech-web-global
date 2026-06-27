@@ -178,7 +178,7 @@ export default function RanchosPage() {
     try {
       const token = localStorage.getItem("corraltech_token"); 
       
-      await axios.post("http://192.168.1.71:8000/api/v1/master/ranchos", payload, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/master/ranchos`, payload, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 8000
       });
