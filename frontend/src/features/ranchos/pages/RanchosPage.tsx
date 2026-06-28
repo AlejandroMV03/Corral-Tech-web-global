@@ -104,24 +104,33 @@ export default function RanchosPage() {
         nuevosErrores.telefono = "El número telefónico debe tener exactamente 10 dígitos.";
       }
 
-      if (emailContacto.trim() && !emailRegex.test(emailContacto.trim())) {
-        nuevosErrores.emailContacto = "El formato del correo de contacto no es válido.";
+      if (emailContacto.trim()) {
+        if (!emailRegex.test(emailContacto.trim())) {
+          nuevosErrores.emailContacto = "El formato del correo de contacto no es válido.";
+        } else if (emailContacto.trim().length > 100) {
+          nuevosErrores.emailContacto = "El correo de contacto no puede exceder los 100 caracteres.";
+        }
       }
 
-      // Validación de negocio para ubicación
       if (!ubicacion.trim()) {
-        nuevosErrores.ubicacion = "La ubicación geográfica del terreno es obligatoria.";
-      } else if (ubicacion.length < 5 || ubicacion.length > 100) {
-        nuevosErrores.ubicacion = "La ubicación debe ser descriptiva (entre 5 y 100 caracteres).";
+        nuevosErrores.ubicacion = "Las coordenadas geográficas del rancho son obligatorias.";
+      } else if (!/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(ubicacion.trim())) {
+        nuevosErrores.ubicacion = "El formato debe ser coordenadas exactas válidas (Ej. 19.8437, -90.5255).";
       }
     }
 
     if (step === 2) {
       if (!adminNombres.trim()) nuevosErrores.adminNombres = "Los nombres del administrador son obligatorios.";
       if (!adminUsername.trim()) nuevosErrores.adminUsername = "El username de acceso es obligatorio.";
-      if (adminEmail.trim() && !emailRegex.test(adminEmail.trim())) {
-        nuevosErrores.adminEmail = "El formato del correo no es válido.";
+      
+      if (adminEmail.trim()) {
+        if (!emailRegex.test(adminEmail.trim())) {
+          nuevosErrores.adminEmail = "El formato del correo no es válido.";
+        } else if (adminEmail.trim().length > 100) {
+          nuevosErrores.adminEmail = "El correo del administrador no puede exceder los 100 caracteres.";
+        }
       }
+      
       if (!adminPassword.trim() || adminPassword.length < 6) {
         nuevosErrores.adminPassword = "La contraseña debe tener mínimo 6 caracteres de seguridad.";
       }
@@ -187,7 +196,6 @@ export default function RanchosPage() {
       setStatusMessage(`¡Felicidades! El rancho "${nombre}" y su Súper Administrador se configuraron exitosamente en Supabase.`);
       setShowStatusModal(true);
       
-      // Limpieza controlada de estados de negocio
       setStep(1);
       setNombre(""); setPropietario(""); setUbicacion(""); setTelefono(""); setEmailContacto("");
       setAdminNombres(""); setAdminApellidos(""); setAdminUsername(""); setAdminEmail(""); setAdminPassword("");
@@ -290,22 +298,31 @@ export default function RanchosPage() {
                 {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
               </div>
 
+              {/* 🌟 CORRECCIÓN PUNTO 4: Campo adaptado explícitamente para coordenadas exactas con su placeholder instructivo */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-gray-700 mb-1">Ubicación Geográfica *</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Ubicación Geográfica (Coordenadas GPS) *</label>
                 <input 
                   type="text" 
                   maxLength={100}
                   value={ubicacion} 
                   onChange={(e) => setUbicacion(e.target.value)} 
                   className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.ubicacion ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                  placeholder="Municipio, Estado (Ej. Champotón, Campeche)" 
+                  placeholder="Ej. 19.8437, -90.5255" 
                 />
                 {errors.ubicacion && <p className="text-red-500 text-xs mt-1">{errors.ubicacion}</p>}
               </div>
 
+              {/* 🌟 CORRECCIÓN PUNTO 5: Input limitado físicamente mediante propiedad HTML a 100 letras */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Correo de Contacto</label>
-                <input type="text" value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.emailContacto ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} placeholder="rancho@correo.com" />
+                <input 
+                  type="text" 
+                  maxLength={100}
+                  value={emailContacto} 
+                  onChange={(e) => setEmailContacto(e.target.value)} 
+                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.emailContacto ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                  placeholder="rancho@correo.com" 
+                />
                 {errors.emailContacto && <p className="text-red-500 text-xs mt-1">{errors.emailContacto}</p>}
               </div>
 
@@ -371,9 +388,18 @@ export default function RanchosPage() {
                   <input type="text" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminUsername ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
                   {errors.adminUsername && <p className="text-red-500 text-xs mt-1">{errors.adminUsername}</p>}
                 </div>
+                
+                {/* 🌟 CORRECCIÓN PUNTO 5: Segundo input de correo electrónico limitado igualmente a 100 caracteres */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
-                  <input type="text" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminEmail ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} placeholder="admin@correo.com" />
+                  <input 
+                    type="text" 
+                    maxLength={100}
+                    value={adminEmail} 
+                    onChange={(e) => setAdminEmail(e.target.value)} 
+                    className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminEmail ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
+                    placeholder="admin@correo.com" 
+                  />
                   {errors.adminEmail && <p className="text-red-500 text-xs mt-1">{errors.adminEmail}</p>}
                 </div>
                 <div>
@@ -400,7 +426,7 @@ export default function RanchosPage() {
         )}
       </div>
 
-      {/* MODAL CONFIRMACIÓN */}
+      {/* 🌟 CORRECCIÓN PUNTO 1: Modal alineado milimétricamente usando Flexbox en el renglón de acciones */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">
@@ -413,11 +439,20 @@ export default function RanchosPage() {
                 Se guardará el rancho "{nombre}" en la base central global de Supabase.
               </p>
             </div>
-            <div className="flex space-x-3 pt-2">
-              <button type="button" onClick={() => setShowConfirmModal(false)} className="flex-1 py-2.5 border border-gray-300 rounded-xl font-bold text-sm text-gray-700 hover:bg-gray-50">
+            {/* Contenedor Flexbox alineado con gap controlado que remueve botones chuecos */}
+            <div className="flex items-center justify-end gap-3 pt-2 w-full">
+              <button 
+                type="button" 
+                onClick={() => setShowConfirmModal(false)} 
+                className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-xl font-bold text-sm text-gray-700 transition-colors"
+              >
                 Cancelar
               </button>
-              <button type="button" onClick={ejecutarRegistroReal} className="flex-1 py-2.5 bg-[#822420] hover:bg-[#681c19] rounded-xl font-bold text-sm text-white shadow-md">
+              <button 
+                type="button" 
+                onClick={ejecutarRegistroReal} 
+                className="flex-1 py-2.5 bg-[#822420] hover:bg-[#681c19] rounded-xl font-bold text-sm text-white shadow-md transition-colors"
+              >
                 Confirmar Registro
               </button>
             </div>

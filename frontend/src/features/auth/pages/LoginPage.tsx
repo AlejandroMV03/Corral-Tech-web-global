@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Importamos para la redirección
-import axios from "axios"; // Importamos Axios para conectar con FastAPI
+import { useNavigate } from "react-router-dom"; 
+import axios from "axios"; 
 import logoCorralTech from "../../../assets/Logo.png";
-import { Eye, EyeOff, AlertCircle } from "lucide-react"; // Sumamos un icono para el error
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
@@ -14,7 +14,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   
-  // Nuevos estados para controlar la API
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -24,27 +23,33 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setError("");
     setLoading(true);
 
-    // El JSON exacto que espera el Schema 'LoginRequest' de tu equipo
     const payload = {
       username: username.trim(),
       password: password
     };
 
     try {
-      // Consumo a la ruta real versionada de tus compañeros
-      const response = await axios.post("http://localhost:8000/api/v1/auth/login", payload, {
-        headers: { "Content-Type": "application/json" }
+     const response = await axios.post("http://localhost:8000/api/v1/master/auth/login", payload, {        headers: { "Content-Type": "application/json" }
       });
 
-      // Guardamos el token de acceso en el almacenamiento local del navegador
-      localStorage.setItem("token", response.data.access_token);
+      const { access_token, usuario } = response.data;
+
+      if (usuario && usuario.rol !== "master_admin" && usuario.rol !== "global_admin") {
+        setError("Acceso Denegado: Tus credenciales pertenecen a una cuenta de Rancho. No tienes autorización para ingresar al Panel Global Corporativo.");
+        setLoading(false);
+        return; 
+      }
+
+      localStorage.setItem("token", access_token);
       localStorage.setItem("username", username.trim());
+      if (usuario?.rol) {
+        localStorage.setItem("user_role", usuario.rol);
+      }
       
       onLoginSuccess();
-      navigate("/dashboard"); // Te manda a tu panel principal
+      navigate("/dashboard"); 
     } catch (err: any) {
       console.error(err);
-      // Muestra el detalle real que aviente FastAPI o el mensaje genérico por defecto
       setError(err.response?.data?.detail || "Usuario o contraseña incorrectos.");
     } finally {
       setLoading(false);
@@ -83,11 +88,11 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
               <form className="space-y-5" onSubmit={handleSubmit}>
                 
-                {/* Mensaje de error dinámico en caso de credenciales inválidas */}
+                {/* Mensaje de error dinámico en caso de credenciales inválidas o restricción de rol */}
                 {error && (
                   <div className="bg-red-50 border-l-4 border-[#7A2E22] p-3 rounded-r-xl flex items-start space-x-2 transition-all">
                     <AlertCircle className="w-5 h-5 text-[#7A2E22] shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-700 font-semibold">{error}</p>
+                    <p className="text-xs text-red-700 font-semibold leading-normal">{error}</p>
                   </div>
                 )}
 
