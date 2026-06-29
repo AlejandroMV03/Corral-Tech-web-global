@@ -211,7 +211,14 @@ export default function RanchosPage() {
       } else if (error.response?.status === 401) {
         setStatusMessage("Tu sesión administrativa ha expirado o el token es inválido. Por seguridad, verifica tus credenciales.");
       } else {
-        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
+        const detail = error.response?.data?.detail;
+        if (Array.isArray(detail)) {
+          const campoFalla = detail[0]?.loc?.join(" -> ") || "desconocido";
+          const mensajeFalla = detail[0]?.msg || "Error de formato";
+          setStatusMessage(`Error de validación en el campo [${campoFalla}]: ${mensajeFalla}`);
+        } else {
+          setStatusMessage(typeof detail === 'string' ? detail : "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
+        }
       }
       
       setShowStatusModal(true);
