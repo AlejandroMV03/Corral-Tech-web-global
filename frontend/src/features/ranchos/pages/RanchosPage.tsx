@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { PlusCircle, ShieldAlert, Key, CheckCircle, XCircle, AlertTriangle, ArrowRight, ArrowLeft } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.71:8000";
+
 const PLANES_CONFIG: { [key: string]: { maxAnimales: number; maxFotoMb: number; esPersonalizado: boolean } } = {
   "1": { maxAnimales: 50, maxFotoMb: 5, esPersonalizado: false },
   "2": { maxAnimales: 100, maxFotoMb: 5, esPersonalizado: false },
@@ -83,6 +85,46 @@ export default function RanchosPage() {
     }
   };
 
+  const handleUbicacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorInput = e.target.value;
+    // Bloquea al vuelo letras y caracteres especiales que no pertenezcan a un formato GPS
+    const valorFiltrado = valorInput.replace(/[^0-9.,\- ]/g, "");
+    setUbicacion(valorFiltrado);
+  };
+
+  const validarCoordenadas = (valor: string): string | null => {
+    const partes = valor.split(",");
+    if (partes.length !== 2) {
+      return "Debes ingresar una latitud y una longitud separadas únicamente por una coma.";
+    }
+
+    const latRaw = partes[0].trim();
+    const lonRaw = partes[1].trim();
+
+    const lat = parseFloat(latRaw);
+    const lon = parseFloat(lonRaw);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return "La latitud y longitud deben expresarse en formato numérico válido.";
+    }
+
+    // Validación de rangos geográficos globales
+    if (lat < -90 || lat > 90) return "La latitud debe estar comprendida entre -90 y 90 grados.";
+    if (lon < -180 || lon > 180) return "La longitud debe estar comprendida entre -180 y 180 grados.";
+
+    // Validación de precisión: Máximo 6 decimales
+    const contarDecimales = (numStr: string) => {
+      const splitDec = numStr.split(".");
+      return splitDec.length > 1 ? splitDec[1].length : 0;
+    };
+
+    if (contarDecimales(latRaw) > 6 || contarDecimales(lonRaw) > 6) {
+      return "Las coordenadas no deben rebasar un máximo de 6 decimales de precisión.";
+    }
+
+    return null;
+  };
+
   const validarPaso = () => {
     const nuevosErrores: { [key: string]: string } = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -114,8 +156,11 @@ export default function RanchosPage() {
 
       if (!ubicacion.trim()) {
         nuevosErrores.ubicacion = "Las coordenadas geográficas del rancho son obligatorias.";
-      } else if (!/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(ubicacion.trim())) {
-        nuevosErrores.ubicacion = "El formato debe ser coordenadas exactas válidas (Ej. 19.8437, -90.5255).";
+      } else {
+        const errorCoordenadas = validarCoordenadas(ubicacion.trim());
+        if (errorCoordenadas) {
+          nuevosErrores.ubicacion = errorCoordenadas;
+        }
       }
     }
 
@@ -187,13 +232,13 @@ export default function RanchosPage() {
     try {
       const token = localStorage.getItem("corraltech_token"); 
       
-      await axios.post(`${import.meta.env.VITE_API_URL}/master/ranchos`, payload, {
+      await axios.post(`${API_URL}/api/v1/master/ranchos`, payload, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 8000
       });
 
       setStatusType("success");
-      setStatusMessage(`¡Felicidades! El rancho "${nombre}" y su Súper Administrador se configuraron exitosamente en Supabase.`);
+      setStatusMessage(`¡Felicidades! El rancho "${nombre}" y su Súper Administrador se configuraron exitosamente.`);
       setShowStatusModal(true);
       
       setStep(1);
@@ -203,17 +248,11 @@ export default function RanchosPage() {
       setErrors({});
     } catch (error: any) {
       setStatusType("error");
-      
       if (error.code === "ECONNABORTED") {
-        setStatusMessage("El servidor central tardó demasiado en responder. El proceso fue abortado para evitar la congelación del sistema.");
-      } else if (error.response?.status === 409 || error.response?.data?.detail?.includes("already exists")) {
-        setStatusMessage(`Error de duplicidad: El username "${adminUsername}" o el correo electrónico ya se encuentran registrados en otra cuenta corporativa de CorralTech.`);
-      } else if (error.response?.status === 401) {
-        setStatusMessage("Tu sesión administrativa ha expirado o el token es inválido. Por seguridad, verifica tus credenciales.");
+        setStatusMessage("El servidor central tardó demasiado en responder.");
       } else {
-        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
+        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos.");
       }
-      
       setShowStatusModal(true);
     } finally {
       setLoading(false);
@@ -226,7 +265,7 @@ export default function RanchosPage() {
     <div className="max-w-4xl mx-auto space-y-6 pb-12 relative">
       <div className="flex flex-col space-y-1">
         <h1 className="text-3xl font-black text-[#264575] tracking-tight">Alta de Rancho y Súper Administrador</h1>
-        <p className="text-sm font-medium text-[#885f3a]">Módulo de Administración Global • Integridad con Supabase</p>
+        <p className="text-sm font-medium text-[#885f3a]">Módulo de Administración Global • Ecosistema CorralTech</p>
       </div>
 
       {/* TRACKER DE PASOS */}
@@ -258,71 +297,37 @@ export default function RanchosPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nombre del Rancho *</label>
-                <input 
-                  type="text" 
-                  maxLength={50} 
-                  onKeyDown={handleKeyDownSoloLetras}
-                  value={nombre} 
-                  onChange={(e) => setNombre(e.target.value)} 
-                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.nombre ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                  placeholder="Ej. El Rancho Viejo" 
-                />
+                <input type="text" maxLength={50} onKeyDown={handleKeyDownSoloLetras} value={nombre} onChange={(e) => setNombre(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.nombre ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} placeholder="Ej. El Rancho Viejo" />
                 {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
               </div>
               
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Nombre Propietario Jurídico</label>
-                <input 
-                  type="text" 
-                  maxLength={60} 
-                  onKeyDown={handleKeyDownSoloLetras}
-                  value={propietario} 
-                  onChange={(e) => setPropietario(e.target.value)} 
-                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm ${errors.propietario ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                  placeholder="Ej. Manuel Suarez" 
-                />
-                {errors.propietario && <p className="text-red-500 text-xs mt-1">{errors.propietario}</p>}
+                <input type="text" maxLength={60} onKeyDown={handleKeyDownSoloLetras} value={propietario} onChange={(e) => setPropietario(e.target.value)} className="w-full px-4 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm" placeholder="Ej. Manuel Suarez" />
               </div>
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Teléfono *</label>
-                <input 
-                  type="text" 
-                  maxLength={10}
-                  onKeyDown={handleKeyDownSoloNumeros}
-                  value={telefono} 
-                  onChange={(e) => setTelefono(e.target.value)} 
-                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.telefono ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                  placeholder="10 dígitos numéricos" 
-                />
+                <input type="text" maxLength={10} onKeyDown={handleKeyDownSoloNumeros} value={telefono} onChange={(e) => setTelefono(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.telefono ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} placeholder="10 dígitos numéricos" />
                 {errors.telefono && <p className="text-red-500 text-xs mt-1">{errors.telefono}</p>}
               </div>
 
-              {/* 🌟 CORRECCIÓN PUNTO 4: Campo adaptado explícitamente para coordenadas exactas con su placeholder instructivo */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-bold text-gray-700 mb-1">Ubicación Geográfica (Coordenadas GPS) *</label>
                 <input 
                   type="text" 
                   maxLength={100}
                   value={ubicacion} 
-                  onChange={(e) => setUbicacion(e.target.value)} 
+                  onChange={handleUbicacionChange} 
                   className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.ubicacion ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
                   placeholder="Ej. 19.8437, -90.5255" 
                 />
                 {errors.ubicacion && <p className="text-red-500 text-xs mt-1">{errors.ubicacion}</p>}
               </div>
 
-              {/* 🌟 CORRECCIÓN PUNTO 5: Input limitado físicamente mediante propiedad HTML a 100 letras */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Correo de Contacto</label>
-                <input 
-                  type="text" 
-                  maxLength={100}
-                  value={emailContacto} 
-                  onChange={(e) => setEmailContacto(e.target.value)} 
-                  className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.emailContacto ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                  placeholder="rancho@correo.com" 
-                />
+                <input type="text" maxLength={100} value={emailContacto} onChange={(e) => setEmailContacto(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.emailContacto ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} placeholder="rancho@correo.com" />
                 {errors.emailContacto && <p className="text-red-500 text-xs mt-1">{errors.emailContacto}</p>}
               </div>
 
@@ -341,11 +346,6 @@ export default function RanchosPage() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">Cantidad Máxima de Animales</label>
                 <input type="number" value={maxAnimalesOverride} disabled={!esPersonalizado} onChange={(e) => setMaxAnimalesOverride(e.target.value)} className={`w-full px-4 py-2 border rounded-xl text-sm font-medium transition-all ${!esPersonalizado ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed" : "bg-[#fff8ed]/20 border-[#885f3a]/40 text-gray-800"}`} />
               </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Megabytes por Foto (Fijo)</label>
-                <input type="number" value={maxFotoMbOverride} disabled={true} className="w-full px-4 py-2 bg-gray-100 text-gray-400 border-gray-200 rounded-xl text-sm font-medium cursor-not-allowed" />
-              </div>
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-gray-100">
@@ -354,7 +354,7 @@ export default function RanchosPage() {
                 <label htmlFor="catalogos" className="text-sm font-bold text-gray-700 select-none cursor-pointer">Habilitar Catálogos Personalizados</label>
               </div>
 
-              <button type="button" onClick={handleSiguiente} className="px-6 py-2.5 text-white bg-[#822420] hover:bg-[#681c19] font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all active:scale-95 md:w-auto w-full">
+              <button type="button" onClick={handleSiguiente} className="px-6 py-2.5 text-white bg-[#822420] hover:bg-[#681c19] font-bold rounded-xl shadow-md flex items-center justify-center space-x-2 transition-all md:w-auto w-full">
                 <span>Siguiente Paso</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -372,40 +372,30 @@ export default function RanchosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Nombres *</label>
-                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminNombres} onChange={(e) => setAdminNombres(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminNombres ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
+                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminNombres} onChange={(e) => setAdminNombres(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminNombres ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} />
                   {errors.adminNombres && <p className="text-red-500 text-xs mt-1">{errors.adminNombres}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Apellidos</label>
-                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminApellidos} onChange={(e) => setAdminApellidos(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminApellidos ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
-                  {errors.adminApellidos && <p className="text-red-500 text-xs mt-1">{errors.adminApellidos}</p>}
+                  <input type="text" onKeyDown={handleKeyDownSoloLetras} value={adminApellidos} onChange={(e) => setAdminApellidos(e.target.value)} className="w-full px-4 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Username de Acceso *</label>
-                  <input type="text" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminUsername ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
+                  <input type="text" value={adminUsername} onChange={(e) => setAdminUsername(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminUsername ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} />
                   {errors.adminUsername && <p className="text-red-500 text-xs mt-1">{errors.adminUsername}</p>}
                 </div>
-                
-                {/* 🌟 CORRECCIÓN PUNTO 5: Segundo input de correo electrónico limitado igualmente a 100 caracteres */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
-                  <input 
-                    type="text" 
-                    maxLength={100}
-                    value={adminEmail} 
-                    onChange={(e) => setAdminEmail(e.target.value)} 
-                    className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminEmail ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} 
-                    placeholder="admin@correo.com" 
-                  />
+                  <input type="text" maxLength={100} value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className={`w-full px-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminEmail ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} placeholder="admin@correo.com" />
                   {errors.adminEmail && <p className="text-red-500 text-xs mt-1">{errors.adminEmail}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Contraseña Inicial *</label>
                   <div className="relative">
-                    <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className={`w-full pl-9 pr-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminPassword ? "border-red-500 ring-1 ring-red-500" : "border-[#885f3a]/40"}`} />
+                    <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className={`w-full pl-9 pr-4 py-2 bg-[#fff8ed]/20 border rounded-xl text-sm transition-all ${errors.adminPassword ? "border-red-500 ring-1" : "border-[#885f3a]/40"}`} />
                     <Key className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   </div>
                   {errors.adminPassword && <p className="text-red-500 text-xs mt-1">{errors.adminPassword}</p>}
@@ -426,7 +416,6 @@ export default function RanchosPage() {
         )}
       </div>
 
-      {/* 🌟 CORRECCIÓN PUNTO 1: Modal alineado milimétricamente usando Flexbox en el renglón de acciones */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">
@@ -435,24 +424,13 @@ export default function RanchosPage() {
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-gray-900">¿Confirmar Alta de Rancho?</h3>
-              <p className="text-sm text-gray-500 px-2">
-                Se guardará el rancho "{nombre}" en la base central global de Supabase.
-              </p>
+              <p className="text-sm text-gray-500 px-2">Se guardará el rancho "{nombre}" en la base central global.</p>
             </div>
-            {/* Contenedor Flexbox alineado con gap controlado que remueve botones chuecos */}
             <div className="flex items-center justify-end gap-3 pt-2 w-full">
-              <button 
-                type="button" 
-                onClick={() => setShowConfirmModal(false)} 
-                className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-xl font-bold text-sm text-gray-700 transition-colors"
-              >
+              <button type="button" onClick={() => setShowConfirmModal(false)} className="flex-1 py-2.5 border border-gray-300 hover:bg-gray-50 rounded-xl font-bold text-sm text-gray-700 transition-colors">
                 Cancelar
               </button>
-              <button 
-                type="button" 
-                onClick={ejecutarRegistroReal} 
-                className="flex-1 py-2.5 bg-[#822420] hover:bg-[#681c19] rounded-xl font-bold text-sm text-white shadow-md transition-colors"
-              >
+              <button type="button" onClick={ejecutarRegistroReal} className="flex-1 py-2.5 bg-[#822420] hover:bg-[#681c19] rounded-xl font-bold text-sm text-white shadow-md transition-colors">
                 Confirmar Registro
               </button>
             </div>
@@ -479,9 +457,7 @@ export default function RanchosPage() {
               <h3 className={`text-xl font-black ${statusType === "success" ? "text-green-700" : "text-red-700"}`}>
                 {statusType === "success" ? "¡Alta Exitosa!" : "Registro Denegado"}
               </h3>
-              <p className="text-sm font-medium text-gray-600 px-3 leading-relaxed">
-                {statusMessage}
-              </p>
+              <p className="text-sm font-medium text-gray-600 px-3 leading-relaxed">{statusMessage}</p>
             </div>
             <div className="pt-2">
               <button type="button" onClick={() => setShowStatusModal(false)} className={`w-full py-2.5 rounded-xl font-bold text-sm text-white shadow transition-colors ${statusType === "success" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>
