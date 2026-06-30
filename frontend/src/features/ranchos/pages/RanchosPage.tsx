@@ -251,7 +251,14 @@ export default function RanchosPage() {
       if (error.code === "ECONNABORTED") {
         setStatusMessage("El servidor central tardó demasiado en responder.");
       } else {
-        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos.");
+        const detail = error.response?.data?.detail;
+        if (Array.isArray(detail)) {
+          const campoFalla = detail[0]?.loc?.join(" -> ") || "desconocido";
+          const mensajeFalla = detail[0]?.msg || "Error de formato";
+          setStatusMessage(`Error de validación en el campo [${campoFalla}]: ${mensajeFalla}`);
+        } else {
+          setStatusMessage(typeof detail === 'string' ? detail : "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
+        }
       }
       setShowStatusModal(true);
     } finally {
