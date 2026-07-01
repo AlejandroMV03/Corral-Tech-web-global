@@ -11,6 +11,7 @@ import RolesPermisosPage from "../../features/roles-permisos/pages/RolesPermisos
 import ReportesGlobalesPage from "../../features/reportes-globales/pages/ReportesGlobalesPage";
 import AuditoriaGlobalPage from "../../features/auditoria-global/pages/AuditoriaGlobalPage";
 import ConfiguracionPage from "../../features/configuracion/pages/ConfiguracionPage";
+import ListaRanchosPage from "../../features/ranchos/pages/ListaRanchosPage";
 
 export default function AppRouter() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,8 +43,11 @@ export default function AppRouter() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardGlobalPage />} />
-        <Route path="ranchos" element={<div className="p-6"><h1 className="text-2xl font-bold text-[#264575]">Lista de Ranchos </h1></div>} />
+        
+        {/* 🌟 CORRECCIÓN: Ahora la ruta base 'ranchos' carga directamente tu componente real */}
+        <Route path="ranchos" element={<ListaRanchosPage />} />
         <Route path="ranchos/crear" element={<RanchosPage />} />
+        
         <Route path="usuarios-plataforma" element={<UsuariosPlataformaPage />} />
         <Route path="usuarios-rancho" element={<UsuariosRanchoPage />} />
         <Route path="roles-permisos" element={<RolesPermisosPage />} />

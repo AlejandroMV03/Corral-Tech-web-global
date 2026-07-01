@@ -85,13 +85,14 @@ export default function RanchosPage() {
     }
   };
 
+  // Filtrado en tiempo real en el teclado para el campo de coordenadas GPS
   const handleUbicacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const valorInput = e.target.value;
-    // Bloquea al vuelo letras y caracteres especiales que no pertenezcan a un formato GPS
     const valorFiltrado = valorInput.replace(/[^0-9.,\- ]/g, "");
     setUbicacion(valorFiltrado);
   };
 
+  // Función de validación matemática y lógica para coordenadas GPS
   const validarCoordenadas = (valor: string): string | null => {
     const partes = valor.split(",");
     if (partes.length !== 2) {
@@ -108,11 +109,9 @@ export default function RanchosPage() {
       return "La latitud y longitud deben expresarse en formato numérico válido.";
     }
 
-    // Validación de rangos geográficos globales
     if (lat < -90 || lat > 90) return "La latitud debe estar comprendida entre -90 y 90 grados.";
     if (lon < -180 || lon > 180) return "La longitud debe estar comprendida entre -180 y 180 grados.";
 
-    // Validación de precisión: Máximo 6 decimales
     const contarDecimales = (numStr: string) => {
       const splitDec = numStr.split(".");
       return splitDec.length > 1 ? splitDec[1].length : 0;
@@ -203,7 +202,7 @@ export default function RanchosPage() {
     setShowConfirmModal(true);
   };
 
-  const ejecutarRegistroReal = async () => {
+const ejecutarRegistroReal = async () => {
     setShowConfirmModal(false);
     setLoading(true); 
     const configPlan = PLANES_CONFIG[idPlan];
@@ -232,7 +231,8 @@ export default function RanchosPage() {
     try {
       const token = localStorage.getItem("corraltech_token"); 
       
-      await axios.post(`${API_URL}/api/v1/master/ranchos`, payload, {
+
+      await axios.post("http://192.168.1.71:8000/api/v1/master/ranchos", payload, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 8000
       });
@@ -241,6 +241,7 @@ export default function RanchosPage() {
       setStatusMessage(`¡Felicidades! El rancho "${nombre}" y su Súper Administrador se configuraron exitosamente.`);
       setShowStatusModal(true);
       
+      // Limpieza controlada de estados
       setStep(1);
       setNombre(""); setPropietario(""); setUbicacion(""); setTelefono(""); setEmailContacto("");
       setAdminNombres(""); setAdminApellidos(""); setAdminUsername(""); setAdminEmail(""); setAdminPassword("");
@@ -251,14 +252,7 @@ export default function RanchosPage() {
       if (error.code === "ECONNABORTED") {
         setStatusMessage("El servidor central tardó demasiado en responder.");
       } else {
-        const detail = error.response?.data?.detail;
-        if (Array.isArray(detail)) {
-          const campoFalla = detail[0]?.loc?.join(" -> ") || "desconocido";
-          const mensajeFalla = detail[0]?.msg || "Error de formato";
-          setStatusMessage(`Error de validación en el campo [${campoFalla}]: ${mensajeFalla}`);
-        } else {
-          setStatusMessage(typeof detail === 'string' ? detail : "No se pudo procesar la solicitud debido a un conflicto de datos o falta de respuesta del clúster.");
-        }
+        setStatusMessage(error.response?.data?.detail || "No se pudo procesar la solicitud debido a un conflicto de datos.");
       }
       setShowStatusModal(true);
     } finally {
@@ -294,7 +288,6 @@ export default function RanchosPage() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-8 transition-all duration-300">
         {step === 1 ? (
-          /* PASO 1: DATOS DEL RANCHO COMPACTO */
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center space-x-3 border-b border-gray-100 pb-4">
               <PlusCircle className="w-6 h-6 text-[#822420]" />
@@ -423,6 +416,7 @@ export default function RanchosPage() {
         )}
       </div>
 
+      {/* MODAL CONFIRMACIÓN */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">

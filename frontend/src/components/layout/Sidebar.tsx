@@ -76,14 +76,25 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           
           {openSubmenu === "ranchos" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              <NavLink to="/ranchos" end className={({ isActive }) => `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420]/40 font-semibold" : "text-blue-200 hover:text-white"}`}>
+              {/* 🌟 INTEGRACIÓN SPRINT 6: Lista de ranchos corporativa conectada */}
+              <NavLink 
+                to="/ranchos" 
+                end 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
                 Lista de ranchos
               </NavLink>
-              <NavLink to="/ranchos/crear" className={({ isActive }) => `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`}>
+              
+              <NavLink 
+                to="/ranchos/crear" 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
                 Crear rancho
               </NavLink>
-              <NavLink to="/ranchos" className="block px-4 py-2 text-sm text-blue-300/60 cursor-not-allowed select-none">Detalle / Edición </NavLink>
-              <NavLink to="/ranchos" className="block px-4 py-2 text-sm text-blue-300/60 cursor-not-allowed select-none">Activar / Desactivar </NavLink>
             </div>
           )}
         </div>
