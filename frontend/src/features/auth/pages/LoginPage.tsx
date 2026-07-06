@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios"; 
 import logoCorralTech from "../../../assets/Logo.png";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 interface LoginPageProps {
   onLoginSuccess: () => void;
 }
@@ -29,7 +29,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     };
 
     try {
-     const response = await axios.post("http://localhost:8000/api/v1/master/auth/login", payload, {        headers: { "Content-Type": "application/json" }
+     const response = await axios.post(`${API_URL}/master/auth/login`, payload, {        headers: { "Content-Type": "application/json" }
       });
 
       const { access_token, usuario } = response.data;

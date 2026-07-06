@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { PlusCircle, ShieldAlert, Key, CheckCircle, XCircle, AlertTriangle, ArrowRight, ArrowLeft } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.71:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const PLANES_CONFIG: { [key: string]: { maxAnimales: number; maxFotoMb: number; esPersonalizado: boolean } } = {
   "1": { maxAnimales: 50, maxFotoMb: 5, esPersonalizado: false },
@@ -232,7 +232,7 @@ const ejecutarRegistroReal = async () => {
       const token = localStorage.getItem("corraltech_token"); 
       
 
-      await axios.post("http://192.168.1.71:8000/api/v1/master/ranchos", payload, {
+      await axios.post(`${API_URL}/master/ranchos`,payload, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 8000
       });

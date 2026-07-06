@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Search, UserPlus, Edit, ToggleLeft, ToggleRight, Loader2, CheckCircle, XCircle, Key } from "lucide-react";
 
-const API_URL = "http://192.168.1.71:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface DueñoGlobal {
   id_usuario: number;
@@ -27,7 +27,7 @@ export default function UsuariosPlataformaPage() {
   const cargarUsuarios = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/api/v1/master/dueños-globales`, {
+      const res = await axios.get(`${API_URL}/master/dueños-globales`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsuarios(res.data);
@@ -50,7 +50,7 @@ export default function UsuariosPlataformaPage() {
   const handleCrearUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/api/v1/master/dueños-globales`, formCrear, {
+      await axios.post(`${API_URL}/master/dueños-globales`, formCrear, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setModalCrearOpen(false);
@@ -68,7 +68,7 @@ export default function UsuariosPlataformaPage() {
     if (!usuarioEditando) return;
 
     try {
-      await axios.put(`${API_URL}/api/v1/master/dueños-globales/${usuarioEditando.id_usuario}`, formEdit, {
+      await axios.put(`${API_URL}/master/dueños-globales/${usuarioEditando.id_usuario}`, formEdit, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setModalEdicionOpen(false);
@@ -83,7 +83,7 @@ export default function UsuariosPlataformaPage() {
   const handleToggleEstado = async (id: number, estadoActual: boolean) => {
     try {
       const nuevoEstado = !estadoActual;
-      await axios.patch(`${API_URL}/api/v1/master/dueños-globales/${id}/estado?activo=${nuevoEstado}`, {}, {
+      await axios.patch(`${API_URL}/master/dueños-globales/${id}/estado?activo=${nuevoEstado}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsuarios(usuarios.map(u => u.id_usuario === id ? { ...u, activo: nuevoEstado } : u));

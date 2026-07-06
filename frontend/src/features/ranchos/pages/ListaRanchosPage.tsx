@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { Search, Edit, ToggleLeft, ToggleRight, Loader2, CheckCircle, XCircle } from "lucide-react";
 
-const API_URL = "http://192.168.1.71:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface Rancho {
   id_rancho: number;
@@ -11,7 +11,7 @@ interface Rancho {
   propietario: string;
   telefono: string;
   email_contacto: string;
-  id_plan: number;
+  id_plan?: number; 
   activo: boolean;
 }
 
@@ -23,7 +23,14 @@ export default function ListaRanchosPage() {
   const [ranchoEditando, setRanchoEditando] = useState<Rancho | null>(null);
   const [modalEdicionOpen, setModalEdicionOpen] = useState(false);
   
-  const [formEdit, setFormEdit] = useState({ nombre: "", ubicacion: "", propietario: "", telefono: "", email_contacto: "", id_plan: 1 });
+  const [formEdit, setFormEdit] = useState({ 
+    nombre: "", 
+    ubicacion: "", 
+    propietario: "", 
+    telefono: "", 
+    email_contacto: "", 
+    id_plan: 1 
+  });
   const [statusModal, setStatusModal] = useState({ open: false, type: "success", message: "" });
 
   const token = localStorage.getItem("corraltech_token");
@@ -31,7 +38,7 @@ export default function ListaRanchosPage() {
   const cargarRanchos = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/api/v1/master/ranchos`, {
+      const res = await axios.get(`${API_URL}/master/ranchos`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRanchos(res.data);
@@ -53,7 +60,7 @@ export default function ListaRanchosPage() {
   const handleToggleEstado = async (id: number, estadoActual: boolean) => {
     try {
       const nuevoEstado = !estadoActual;
-      await axios.patch(`${API_URL}/api/v1/master/ranchos/${id}/estado?activo=${nuevoEstado}`, {}, {
+      await axios.patch(`${API_URL}/master/ranchos/${id}/estado?activo=${nuevoEstado}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -66,13 +73,15 @@ export default function ListaRanchosPage() {
 
   const abrirEdicion = (rancho: Rancho) => {
     setRanchoEditando(rancho);
+    const planActual = rancho.id_plan !== undefined && rancho.id_plan !== null ? Number(rancho.id_plan) : 1;
+    
     setFormEdit({
       nombre: rancho.nombre,
       ubicacion: rancho.ubicacion || "",
       propietario: rancho.propietario || "",
       telefono: rancho.telefono || "",
       email_contacto: rancho.email_contacto || "",
-      id_plan: rancho.id_plan || 1 
+      id_plan: planActual
     });
     setModalEdicionOpen(true);
   };
@@ -82,7 +91,7 @@ export default function ListaRanchosPage() {
     if (!ranchoEditando) return;
 
     try {
-      await axios.put(`${API_URL}/api/v1/master/ranchos/${ranchoEditando.id_rancho}`, formEdit, {
+      await axios.put(`${API_URL}/master/ranchos/${ranchoEditando.id_rancho}`, formEdit, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setModalEdicionOpen(false);
@@ -147,7 +156,11 @@ export default function ListaRanchosPage() {
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900 text-base">{rancho.nombre}</td>
                     <td className="px-6 py-4 text-gray-500 font-semibold">{rancho.propietario || "—"}</td>
-                    <td className="px-6 py-4 font-mono text-xs text-[#885f3a] bg-amber-50/30 px-2 py-1 rounded-lg inline-block my-3 ml-4">{rancho.ubicacion || "—"}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-[#885f3a]">
+                      <span className="bg-amber-50/70 px-2.5 py-1 rounded-lg border border-amber-100 inline-block">
+                        {rancho.ubicacion || "—"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <button 
                         type="button" 
@@ -179,7 +192,7 @@ export default function ListaRanchosPage() {
         )}
       </div>
 
-      {/* MODAL PARA DETALLE / EDICIÓN CON SELECTOR DE PLAN INCLUIDO */}
+      {/* MODAL PARA DETALLE / EDICIÓN ASIGNADO CORRECTAMENTE SEGÚN image_b5f918.png */}
       {modalEdicionOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-sm">
           <form onSubmit={handleGuardarEdicion} className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 border border-gray-100">
@@ -195,7 +208,11 @@ export default function ListaRanchosPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Plan de Suscripción *</label>
-                  <select value={formEdit.id_plan} onChange={(e) => setFormEdit({ ...formEdit, id_plan: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#264575] outline-none font-medium text-gray-700 bg-transparent cursor-pointer">
+                  <select 
+                    value={formEdit.id_plan} 
+                    onChange={(e) => setFormEdit({ ...formEdit, id_plan: parseInt(e.target.value, 10) })} 
+                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#264575] outline-none font-semibold text-gray-700 bg-white cursor-pointer"
+                  >
                     <option value={1}>Plan limitado 50</option>
                     <option value={2}>Plan limitado 100</option>
                     <option value={3}>Plan limitado 200</option>
