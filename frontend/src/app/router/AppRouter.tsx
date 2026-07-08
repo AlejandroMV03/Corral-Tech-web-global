@@ -12,6 +12,8 @@ import ReportesGlobalesPage from "../../features/reportes-globales/pages/Reporte
 import AuditoriaGlobalPage from "../../features/auditoria-global/pages/AuditoriaGlobalPage";
 import ConfiguracionPage from "../../features/configuracion/pages/ConfiguracionPage";
 import ListaRanchosPage from "../../features/ranchos/pages/ListaRanchosPage";
+import AdministradoresGlobalesPage from "../../features/usuarios-plataforma/pages/AdministradoresGlobalesPage";
+import SoporteGlobalPage from "../../features/usuarios-plataforma/pages/SoporteGlobalPage";
 
 export default function AppRouter() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -43,18 +45,23 @@ export default function AppRouter() {
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardGlobalPage />} />
-        
-        {/* 🌟 CORRECCIÓN: Ahora la ruta base 'ranchos' carga directamente tu componente real */}
         <Route path="ranchos" element={<ListaRanchosPage />} />
         <Route path="ranchos/crear" element={<RanchosPage />} />
         
-        <Route path="usuarios-plataforma" element={<UsuariosPlataformaPage />} />
+        <Route path="usuarios-plataforma">
+          <Route index element={<Navigate to="dueno-global" replace />} />
+          <Route path="dueno-global" element={<UsuariosPlataformaPage />} />
+          <Route path="administradores" element={<AdministradoresGlobalesPage />} />
+          <Route path="soporte-global" element={<SoporteGlobalPage />} />
+        </Route>
+        
         <Route path="usuarios-rancho" element={<UsuariosRanchoPage />} />
         <Route path="roles-permisos" element={<RolesPermisosPage />} />
         <Route path="reportes" element={<ReportesGlobalesPage />} />
         <Route path="auditoria" element={<AuditoriaGlobalPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
       </Route>
+      
       <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );

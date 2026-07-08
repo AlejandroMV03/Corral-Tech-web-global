@@ -21,12 +21,8 @@ interface SidebarProps {
 
 export default function Sidebar({ onLogout }: SidebarProps) {
   const location = useLocation();
-
-  // Cambiamos el objeto por un estado único de tipo string.
-  // Por defecto, iniciamos con "ranchos" abierto tal como lo tenías.
   const [openSubmenu, setOpenSubmenu] = useState<string | null>("ranchos");
 
-  // Al hacer clic, si el menú ya está abierto se cierra (null), de lo contrario se abre el nuevo y cierra el anterior.
   const toggleSubmenu = (menu: string) => {
     setOpenSubmenu(prevMenu => (prevMenu === menu ? null : menu));
   };
@@ -34,7 +30,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
   return (
     <aside className="w-72 bg-[#264575] text-white flex flex-col min-h-screen shadow-xl select-none">
       
-      {/* Área del Logotipo Superior */}
       <div className="p-6 bg-[#1f3961] flex flex-col items-center justify-center border-b border-[#32578f]">
         <img 
           src={logoCorralTech} 
@@ -76,7 +71,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           
           {openSubmenu === "ranchos" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              {/* 🌟 INTEGRACIÓN SPRINT 6: Lista de ranchos corporativa conectada */}
               <NavLink 
                 to="/ranchos" 
                 end 
@@ -86,7 +80,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
               >
                 Lista de ranchos
               </NavLink>
-              
               <NavLink 
                 to="/ranchos/crear" 
                 className={({ isActive }) => 
@@ -115,9 +108,30 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </button>
           {openSubmenu === "usuariosPlataforma" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              <NavLink to="/usuarios-plataforma" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Dueño Global </NavLink>
-              <NavLink to="/usuarios-plataforma" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Administradores </NavLink>
-              <NavLink to="/usuarios-plataforma" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Soporte Global </NavLink>
+              <NavLink 
+                to="/usuarios-plataforma/dueno-global" 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
+                Dueño Global
+              </NavLink>
+              <NavLink 
+                to="/usuarios-plataforma/administradores" 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
+                Administradores
+              </NavLink>
+              <NavLink 
+                to="/usuarios-plataforma/soporte-global" 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
+                Soporte Global
+              </NavLink>
             </div>
           )}
         </div>
@@ -138,10 +152,14 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </button>
           {openSubmenu === "usuariosRancho" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              <NavLink to="/usuarios-rancho" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Buscar Rancho </NavLink>
-              <NavLink to="/usuarios-rancho" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Crear Súper Admin </NavLink>
-              <NavLink to="/usuarios-rancho" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Detalles / Editar </NavLink>
-              <NavLink to="/usuarios-rancho" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Cambiar Rol </NavLink>
+              <NavLink 
+                to="/usuarios-rancho" 
+                className={({ isActive }) => 
+                  `block px-4 py-2 text-sm rounded-lg ${isActive ? "text-white bg-[#822420] font-semibold shadow-sm" : "text-blue-200 hover:text-white"}`
+                }
+              >
+                Administrar Cuentas
+              </NavLink>
             </div>
           )}
         </div>
@@ -164,7 +182,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
               <NavLink to="/reportes" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Reporte de Ranchos </NavLink>
               <NavLink to="/reportes" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Reporte de Actividad </NavLink>
-              <NavLink to="/reportes" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Exportaciones PDF/Excel </NavLink>
             </div>
           )}
         </div>
@@ -185,10 +202,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </button>
           {openSubmenu === "auditoria" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Creación de Ranchos</NavLink>
               <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Cambios Administrativos</NavLink>
               <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Accesos </NavLink>
-              <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Errores del Sistema </NavLink>
             </div>
           )}
         </div>
@@ -210,20 +225,10 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           {openSubmenu === "configuracion" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
               <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Roles Globales </NavLink>
-              <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Roles de Rancho </NavLink>
               <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Módulos y Permisos </NavLink>
             </div>
           )}
         </div>
-
-        {/* 8. PERFIL */}
-        <NavLink
-          to="/configuracion" 
-          className="flex items-center space-x-3 px-4 py-2.5 rounded-xl font-medium text-blue-100 hover:bg-[#1f3961] transition-all duration-150"
-        >
-          <User className="w-5 h-5 opacity-90" />
-          <span>Perfil </span>
-        </NavLink>
 
       </nav>
 

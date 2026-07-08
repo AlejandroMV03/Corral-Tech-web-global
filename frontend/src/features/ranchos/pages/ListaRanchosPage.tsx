@@ -111,7 +111,6 @@ export default function ListaRanchosPage() {
     <div className="max-w-6xl mx-auto space-y-6 p-6 pb-12 animate-fade-in">
       <div className="flex flex-col space-y-1">
         <h1 className="text-3xl font-black text-[#264575] tracking-tight">Lista Corporativa de Ranchos</h1>
-        <p className="text-sm font-semibold text-[#885f3a]">Módulo de Monitoreo General de Tenants</p>
       </div>
 
       <div className="flex items-center space-x-3 bg-white border border-gray-200/80 p-3.5 rounded-xl shadow-sm max-w-md transition-all focus-within:border-[#264575] focus-within:ring-1 focus-within:ring-[#264575]">
