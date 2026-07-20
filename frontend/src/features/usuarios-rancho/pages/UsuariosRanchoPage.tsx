@@ -47,8 +47,9 @@ export default function UsuariosRanchoPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsuarios(res.data);
-    } catch (err) {
-      mostrarStatus("error", "No se pudo recuperar la lista consolidada de personal de los ranchos.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "No se pudo recuperar la lista consolidada de personal de los ranchos.";
+      mostrarStatus("error", msg);
     } finally {
       setLoading(false);
     }
@@ -86,8 +87,9 @@ export default function UsuariosRanchoPage() {
       setModalEditOpen(false);
       mostrarStatus("success", "Cuenta local actualizada y registrada en la bitácora de auditoría.");
       cargarUsuariosConsolidados();
-    } catch (err) {
-      mostrarStatus("error", "Error al procesar la actualización del usuario.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "Error al procesar la actualización del usuario.";
+      mostrarStatus("error", msg);
     }
   };
 
@@ -101,8 +103,9 @@ export default function UsuariosRanchoPage() {
       );
       setUsuarios(usuarios.map(usr => usr.id_usuario === u.id_usuario ? { ...usr, activo: nuevoEstado } : usr));
       mostrarStatus("success", nuevoEstado ? "Acceso al rancho restablecido." : "Baja lógica ejecutada: Acceso revocado.");
-    } catch (err) {
-      mostrarStatus("error", "No se pudo alterar el estado de acceso.");
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || "No se pudo alterar el estado de acceso.";
+      mostrarStatus("error", msg);
     }
   };
 

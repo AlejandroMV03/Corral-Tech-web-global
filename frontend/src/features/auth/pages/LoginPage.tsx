@@ -40,7 +40,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         return; 
       }
 
-      localStorage.setItem("token", access_token);
+      localStorage.setItem("corraltech_token", access_token);
       localStorage.setItem("username", username.trim());
       if (usuario?.rol) {
         localStorage.setItem("user_role", usuario.rol);
@@ -108,7 +108,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     className="w-full px-4 py-2.5 border border-[#C4A484] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E22] focus:border-[#7A2E22] bg-white text-gray-900 transition-all disabled:opacity-50"
-                    placeholder="AndresOHT"
+                    placeholder="Ingrese su usuario"
                   />
                 </div>
 
