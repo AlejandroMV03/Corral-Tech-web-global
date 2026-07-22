@@ -202,7 +202,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           {openSubmenu === "auditoria" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
               <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Cambios Administrativos</NavLink>
-              <NavLink to="/auditoria" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Accesos </NavLink>
             </div>
           )}
         </div>
@@ -223,8 +222,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           </button>
           {openSubmenu === "configuracion" && (
             <div className="mt-1 ml-6 pl-2 border-l border-[#32578f] space-y-1 animate-fade-in">
-              <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Roles Globales </NavLink>
-              <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Módulos y Permisos </NavLink>
+              <NavLink to="/configuracion" className="block px-4 py-2 text-sm text-blue-200 hover:text-white">Control General </NavLink>
             </div>
           )}
         </div>
