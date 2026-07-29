@@ -14,7 +14,7 @@ import ConfiguracionPage from "../../features/configuracion/pages/ConfiguracionP
 import ListaRanchosPage from "../../features/ranchos/pages/ListaRanchosPage";
 import AdministradoresGlobalesPage from "../../features/usuarios-plataforma/pages/AdministradoresGlobalesPage";
 import SoporteGlobalPage from "../../features/usuarios-plataforma/pages/SoporteGlobalPage";
-
+import PerfilPage from "../../features/perfil/PerfilPage";
 export default function AppRouter() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const handleLoginSuccess = () => setIsAuthenticated(true);
@@ -61,7 +61,7 @@ export default function AppRouter() {
         <Route path="auditoria" element={<AuditoriaGlobalPage />} />
         <Route path="configuracion" element={<ConfiguracionPage />} />
       </Route>
-      
+      <Route path="/perfil" element={<PerfilPage />} />
       <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );

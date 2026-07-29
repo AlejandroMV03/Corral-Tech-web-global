@@ -16,7 +16,6 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// --- INTERFACES ---
 interface RolItem {
   id_rol: number;
   nombre: string;
@@ -48,35 +47,23 @@ interface ParametroGeneral {
 
 export default function ConfiguracionPage() {
   const [activeTab, setActiveTab] = useState<"roles_globales" | "roles_rancho" | "permisos" | "parametros">("roles_globales");
-
   const [loading, setLoading] = useState<boolean>(false);
   const token = localStorage.getItem("corraltech_token");
-
-  // --- ESTADOS TAB 1 & 2: ROLES ---
   const [rolesList, setRolesList] = useState<RolItem[]>([]);
   const [modalRolOpen, setModalRolOpen] = useState<boolean>(false);
   const [formRol, setFormRol] = useState({ nombre: "", descripcion: "", scope: "GLOBAL", puede_acceder_todos_ranchos: false });
-
-  // --- ESTADOS TAB 3: MATRIZ DE PERMISOS ---
   const [allRoles, setAllRoles] = useState<RolItem[]>([]);
   const [selectedRolId, setSelectedRolId] = useState<number | null>(null);
   const [matrizPermisos, setMatrizPermisos] = useState<PermisoRolItem[]>([]);
   const [guardandoPermisos, setGuardandoPermisos] = useState<boolean>(false);
-
-  // --- ESTADOS TAB 4: PARÁMETROS GENERALES ---
   const [parametrosList, setParametrosList] = useState<ParametroGeneral[]>([]);
   const [paramEdit, setParamEdit] = useState<{ id: number; valor: string } | null>(null);
-
-  // --- MODAL NOTIFICACIÓN ---
   const [statusModal, setStatusModal] = useState({ open: false, type: "success" as "success" | "error", message: "" });
-
   const getHeaders = () => ({ Authorization: `Bearer ${token}` });
-
   const mostrarStatus = (type: "success" | "error", message: string) => {
     setStatusModal({ open: true, type, message });
   };
 
-  // 1. CARGA DE ROLES
   const cargarRoles = async (scope: "GLOBAL" | "RANCHO") => {
     setLoading(true);
     try {
@@ -90,7 +77,6 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // 2. CARGA DE TODOS LOS ROLES (PARA PESTAÑA PERMISOS)
   const cargarTodosLosRolesParaPermisos = async () => {
     try {
       const [resG, resR] = await Promise.all([
@@ -107,7 +93,6 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // 3. CARGA DE MATRIZ DE PERMISOS POR ROL
   const cargarMatrizPermisos = async (idRol: number) => {
     setLoading(true);
     try {
@@ -120,7 +105,6 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // 4. CARGA DE PARÁMETROS GENERALES
   const cargarParametros = async () => {
     setLoading(true);
     try {
@@ -148,7 +132,6 @@ export default function ConfiguracionPage() {
     }
   }, [selectedRolId, activeTab]);
 
-  // CREAR NUEVO ROL
   const handleCrearRol = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -161,7 +144,6 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // HANDLER CHECKBOX EN MATRIZ DE PERMISOS
   const handleTogglePermiso = (idModulo: number, campo: keyof PermisoRolItem) => {
     setMatrizPermisos((prev) =>
       prev.map((item) => {
@@ -173,7 +155,6 @@ export default function ConfiguracionPage() {
     );
   };
 
-  // GUARDAR MATRIZ DE PERMISOS
   const handleGuardarMatriz = async () => {
     if (!selectedRolId) return;
     setGuardandoPermisos(true);
@@ -191,7 +172,6 @@ export default function ConfiguracionPage() {
     }
   };
 
-  // GUARDAR PARÁMETRO GENERAL
   const handleGuardarParametro = async (idParametro: number) => {
     if (!paramEdit) return;
     try {
@@ -210,7 +190,6 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-6 pb-12 animate-fade-in">
-      {/* HEADER */}
       <div className="flex flex-col space-y-1">
         <h1 className="text-3xl font-black text-[#264575] tracking-tight">Configuración Global</h1>
         <p className="text-sm font-semibold text-[#885f3a]">
@@ -218,7 +197,6 @@ export default function ConfiguracionPage() {
         </p>
       </div>
 
-      {/* BARRA DE NAVEGACIÓN ENTRE SUBMÓDULOS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white/80 p-2 rounded-2xl border border-gray-200/80 shadow-sm">
         <button
           onClick={() => setActiveTab("roles_globales")}
@@ -261,9 +239,6 @@ export default function ConfiguracionPage() {
         </button>
       </div>
 
-      {/* ============================================================== */}
-      {/* PESTAÑA 1 Y 2: ROLES GLOBALES Y DE RANCHO */}
-      {/* ============================================================== */}
       {(activeTab === "roles_globales" || activeTab === "roles_rancho") && (
         <div className="space-y-4 animate-fade-in">
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
@@ -342,9 +317,7 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* PESTAÑA 3: MATRIZ DE PERMISOS (RBAC) */}
-      {/* ============================================================== */}
+
       {activeTab === "permisos" && (
         <div className="space-y-4 animate-fade-in">
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -470,9 +443,7 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* PESTAÑA 4: PARÁMETROS GENERALES */}
-      {/* ============================================================== */}
+
       {activeTab === "parametros" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 space-y-4 animate-fade-in">
           <div className="flex justify-between items-center border-b border-gray-100 pb-3">
@@ -538,7 +509,6 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* MODAL CREAR ROL */}
       {modalRolOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <form onSubmit={handleCrearRol} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100">
@@ -602,7 +572,6 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-      {/* MODAL STATUS NOTIFICACIÓN */}
       {statusModal.open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-xs w-full p-5 text-center shadow-2xl border border-gray-50 space-y-3">
