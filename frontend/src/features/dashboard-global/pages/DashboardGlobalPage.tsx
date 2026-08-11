@@ -26,11 +26,10 @@ export default function DashboardGlobalPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Estados formateados exactamente como lo responde tu backend
   const [metrics, setMetrics] = useState({
-    ranchos: { total: 0, activos: 0, inactivos_o_bajas: 0 },
-    animales: { total: 0, activos: 0, inactivos_o_bajas: 0 },
-    usuarios: { total: 0, activos: 0, inactivos_o_bajas: 0 },
+    ranchos: { total: 0, activos: 0, inactivos: 0 },
+    animales: { total: 0, activos: 0, bajas: 0 },
+    usuarios: { total: 0, activos: 0, bajas: 0 },
     actividadGlobalNuevos: 0,
   });
 
@@ -51,34 +50,41 @@ export default function DashboardGlobalPage() {
         setLoading(true);
         setErrorMessage(null);
 
-        // URL exacta que definiste en tu global_router.py:
         const response = await axios.get(`${API_URL}/master/dashboard/metricas`, {
           headers: getHeaders(),
         });
 
         console.log("DATOS REALES RECIBIDOS:", response.data);
-
         const res = response.data;
 
-        // Mapeo directo con tu DashboardGlobalDataResponse
         if (res) {
           setMetrics({
-            ranchos: res.ranchos || { total: 0, activos: 0, inactivos_o_bajas: 0 },
-            animales: res.animales || { total: 0, activos: 0, inactivos_o_bajas: 0 },
-            usuarios: res.usuarios || { total: 0, activos: 0, inactivos_o_bajas: 0 },
-            actividadGlobalNuevos: res.actividad_global_nuevos || 0,
+            ranchos: {
+              total: res.ranchos?.total ?? 0,
+              activos: res.ranchos?.activos ?? 0,
+              inactivos: res.ranchos?.inactivos ?? res.ranchos?.inactivos_o_bajas ?? 0,
+            },
+            animales: {
+              total: res.animales?.total ?? 0,
+              activos: res.animales?.activos ?? 0,
+              bajas: res.animales?.bajas ?? res.animales?.inactivos_o_bajas ?? 0,
+            },
+            usuarios: {
+              total: res.usuarios?.total ?? 0,
+              activos: res.usuarios?.activos ?? 0,
+              bajas: res.usuarios?.bajas ?? res.usuarios?.inactivos_o_bajas ?? 0,
+            },
+            actividadGlobalNuevos: res.actividad_global_nuevos ?? 0,
           });
 
           setCrecimientoData(res.crecimiento_animales || []);
 
-          // Mapeo de actividad por rancho para Recharts
           const actRanchos = (res.actividad_por_rancho || []).map((item: any) => ({
             rancho: item.rancho,
             acciones: item.actividad,
           }));
           setActividadRanchosData(actRanchos);
 
-          // Mapeo del desglose de roles
           const rolesData = (res.desglose_roles || []).map((item: any) => ({
             name: item.rol,
             value: item.cantidad,
@@ -109,11 +115,12 @@ export default function DashboardGlobalPage() {
     backgroundSize: "cover",
   };
 
-  // Pequeña etiqueta "colgante" que se monta sobre el borde superior de la tarjeta
   const Tag = ({ value, label }: { value: React.ReactNode; label: string }) => (
-    <div className="bg-[#F3E6C6] border border-[#7A2E22]/40 rounded-xl px-3 py-1 text-center shadow-md min-w-[64px]">
-      <span className="text-sm font-extrabold text-[#0D1F3C] block leading-tight">{value}</span>
-      <span className="text-[9px] font-bold text-[#7A2E22] block leading-tight">{label}</span>
+    <div className="bg-[#F3E6C6]/90 backdrop-blur-xs border border-[#7A2E22]/30 rounded-xl px-2.5 py-1 text-center shadow-xs min-w-[68px]">
+      <span className="text-xs font-extrabold text-[#0D1F3C] block leading-none">
+        {value !== undefined && value !== null ? value : 0}
+      </span>
+      <span className="text-[9px] font-bold text-[#7A2E22] block leading-tight mt-0.5">{label}</span>
     </div>
   );
 
@@ -121,7 +128,6 @@ export default function DashboardGlobalPage() {
 
   return (
     <div className="p-6 space-y-6 bg-[#FAF8F5] min-h-screen">
-      {/* ALERTA EN CASO DE ERROR DE CONEXIÓN O AUTH */}
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm font-medium shadow-sm">
           <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-600" />
@@ -137,101 +143,101 @@ export default function DashboardGlobalPage() {
         </p>
       </div>
 
-      {/* 4 TARJETAS SUPERIORES CON ETIQUETAS COLGANTES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
         {/* CARD 1: RANCHOS TOTALES */}
         <div
-          className="relative overflow-visible rounded-3xl border-2 border-[#7A2E22] shadow-md min-h-[130px]"
+          className="relative overflow-hidden rounded-3xl border-2 border-[#7A2E22] shadow-md p-4 sm:p-5 flex items-center justify-between min-h-[130px]"
           style={cardWithBgStyle}
         >
-          <div className="absolute inset-0 rounded-3xl bg-white/55" />
-          <div className="absolute -top-4 right-4 flex gap-2">
-            <Tag value={metrics.ranchos.activos} label="Ranchos" />
-            <Tag value={metrics.ranchos.inactivos_o_bajas} label="Inactivos" />
-          </div>
-          <div className="relative z-10 p-5 pt-9">
-            <span className="text-4xl font-extrabold text-[#0D1F3C] block">
+          <div className="absolute inset-0 bg-white/60 pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col justify-center">
+            <span className="text-3xl sm:text-4xl font-extrabold text-[#0D1F3C] block leading-none">
               {loading ? <Loader2 className="animate-spin text-gray-500" /> : metrics.ranchos.total}
             </span>
-            <span className="text-xs font-bold text-[#0D1F3C] mt-1 block leading-tight">
-              Ranchos
-              <br />
-              Totales
+            <span className="text-xs font-bold text-[#0D1F3C] mt-2 block leading-tight">
+              Ranchos<br />Totales
             </span>
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-1.5">
+            <Tag value={metrics.ranchos.activos} label="Ranchos" />
+            <Tag value={metrics.ranchos.inactivos} label="Inactivos" />
           </div>
         </div>
 
-        {/* CARD 2: ANIMALES REGISTRADOS */}
         <div
-          className="relative overflow-visible rounded-3xl border-2 border-[#7A2E22] shadow-md min-h-[130px]"
+          className="relative overflow-hidden rounded-3xl border-2 border-[#7A2E22] shadow-md p-4 sm:p-5 flex items-center justify-between min-h-[130px]"
           style={cardWithBgStyle}
         >
-          <div className="absolute inset-0 rounded-3xl bg-white/55" />
-          <div className="absolute -top-4 right-4 flex gap-2">
-            <Tag value={metrics.animales.activos} label="Activos" />
-            <Tag value={metrics.animales.inactivos_o_bajas} label="Bajas" />
-          </div>
-          <div className="relative z-10 p-5 pt-9">
-            <span className="text-3xl font-extrabold text-[#0D1F3C] block">
+          <div className="absolute inset-0 bg-white/60 pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col justify-center">
+            <span className="text-2xl sm:text-3xl font-extrabold text-[#0D1F3C] block leading-none">
               {loading ? (
                 <Loader2 className="animate-spin text-gray-500" />
               ) : (
                 metrics.animales.total.toLocaleString()
               )}
             </span>
-            <span className="text-xs font-bold text-[#0D1F3C] mt-1 block leading-tight">
-              Animales
-              <br />
-              Registrados
+            <span className="text-xs font-bold text-[#0D1F3C] mt-2 block leading-tight">
+              Animales<br />Registrados
             </span>
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-1.5">
+            <Tag value={metrics.animales.activos} label="Activos" />
+            <Tag value={metrics.animales.bajas} label="Bajas" />
           </div>
         </div>
 
         {/* CARD 3: USUARIOS PLATAFORMA */}
         <div
-          className="relative overflow-visible rounded-3xl border-2 border-[#7A2E22] shadow-md min-h-[130px]"
+          className="relative overflow-hidden rounded-3xl border-2 border-[#7A2E22] shadow-md p-4 sm:p-5 flex items-center justify-between min-h-[130px]"
           style={cardWithBgStyle}
         >
-          <div className="absolute inset-0 rounded-3xl bg-white/55" />
-          <div className="absolute -top-4 right-4 flex gap-2">
-            <Tag value={metrics.usuarios.activos} label="Activos" />
-            <Tag value={metrics.usuarios.inactivos_o_bajas} label="Bajas" />
-          </div>
-          <div className="relative z-10 p-5 pt-9">
-            <span className="text-3xl font-extrabold text-[#0D1F3C] block">
+          <div className="absolute inset-0 bg-white/60 pointer-events-none" />
+
+          {/* Izquierda: Número Grande + Título */}
+          <div className="relative z-10 flex flex-col justify-center">
+            <span className="text-3xl sm:text-4xl font-extrabold text-[#0D1F3C] block leading-none">
               {loading ? <Loader2 className="animate-spin text-gray-500" /> : metrics.usuarios.total}
             </span>
-            <span className="text-xs font-bold text-[#0D1F3C] mt-1 block leading-tight">
-              Usuarios
-              <br />
-              Plataforma
+            <span className="text-xs font-bold text-[#0D1F3C] mt-2 block leading-tight">
+              Usuarios<br />Plataforma
             </span>
+          </div>
+
+          <div className="relative z-10 flex flex-col gap-1.5">
+            <Tag value={metrics.usuarios.activos} label="Activos" />
+            <Tag value={metrics.usuarios.bajas} label="Bajas" />
           </div>
         </div>
 
         {/* CARD 4: ACTIVIDAD GLOBAL */}
         <div
-          className="relative overflow-visible rounded-3xl border-2 border-[#7A2E22] shadow-md min-h-[130px]"
+          className="relative overflow-hidden rounded-3xl border-2 border-[#7A2E22] shadow-md p-4 sm:p-5 flex items-center justify-between min-h-[130px]"
           style={cardWithBgStyle}
         >
-          <div className="absolute inset-0 rounded-3xl bg-white/55" />
-          <div className="absolute -top-4 right-4">
-            <Tag value={`+${metrics.actividadGlobalNuevos}`} label="Nuevos" />
-          </div>
-          <div className="relative z-10 p-5 pt-9 flex flex-col justify-center h-full">
-            <div className="w-11 h-11 rounded-xl bg-[#0D1F3C] flex items-center justify-center mb-1">
-              <TrendingUp className="w-6 h-6 text-white stroke-[2.5]" />
+          <div className="absolute inset-0 bg-white/60 pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[#0D1F3C] flex items-center justify-center mb-1.5">
+              <TrendingUp className="w-5 h-5 text-white stroke-[2.5]" />
             </div>
-            <span className="text-xs font-bold text-[#0D1F3C] mt-2 block leading-tight">
-              Actividad
-              <br />
-              Global
+            <span className="text-xs font-bold text-[#0D1F3C] block leading-tight">
+              Actividad<br />Global
             </span>
           </div>
+
+          <div className="relative z-10 flex flex-col justify-center">
+            <Tag value={`+${metrics.actividadGlobalNuevos}`} label="Nuevos" />
+          </div>
         </div>
+
       </div>
 
-      {/* SECCIÓN SEGUNDA: GRÁFICAS Y RANCHOS CLAVES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Crecimiento de animales */}
         <div className="rounded-3xl border-2 border-[#7A2E22] bg-white p-4 shadow-sm flex flex-col justify-between h-64">
