@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Search, UserPlus, Edit, ToggleLeft, ToggleRight, Loader2, CheckCircle, XCircle, Key, Eye, EyeOff } from "lucide-react";
+import { sanitizarTexto, sanitizarUsername } from "../../../lib/sanitizer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -14,7 +15,7 @@ interface DueñoGlobal {
 }
 
 const REGEX_NOMBRE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/;
-const REGEX_USERNAME = /^[a-z0-9._-]+$/;
+const REGEX_USERNAME = /^[a-zA-Z0-9._-]+$/;
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DOMINIOS_PUBLICOS = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "live.com", "icloud.com", "aol.com", "protonmail.com"];
 const DOMINIO_CORPORATIVO = "corraltech.com";
@@ -24,7 +25,7 @@ function validarNombres(value: string): string {
   const v = value.trim();
   if (!v) return "El nombre es obligatorio.";
   if (v.length < 2) return "El nombre debe tener al menos 2 caracteres.";
-  if (v.length > 50) return "El nombre no puede exceder 50 caracteres.";
+  if (v.length > 14) return "El nombre no puede exceder 14 caracteres.";
   if (!REGEX_NOMBRE.test(v)) return "Solo se permiten letras y espacios.";
   return "";
 }
@@ -32,7 +33,7 @@ function validarNombres(value: string): string {
 function validarApellidos(value: string): string {
   const v = value.trim();
   if (!v) return "";
-  if (v.length > 50) return "Los apellidos no pueden exceder 50 caracteres.";
+  if (v.length > 14) return "Los apellidos no pueden exceder 14 caracteres.";
   if (!REGEX_NOMBRE.test(v)) return "Solo se permiten letras y espacios.";
   return "";
 }
@@ -41,8 +42,8 @@ function validarUsernameFormato(value: string): string {
   const v = value.trim();
   if (!v) return "El username es obligatorio.";
   if (v.length < 3) return "El username debe tener al menos 3 caracteres.";
-  if (v.length > 30) return "El username no puede exceder 30 caracteres.";
-  if (!REGEX_USERNAME.test(v)) return "Solo minúsculas, números, puntos, guiones y guiones bajos.";
+  if (v.length > 14) return "El username no puede exceder 14 caracteres.";
+  if (!REGEX_USERNAME.test(v)) return "Solo letras, números, puntos, guiones y guiones bajos.";
   return "";
 }
 
@@ -59,20 +60,16 @@ function validarEmail(value: string): string {
 
 function validarPassword(value: string): string {
   if (!value) return "La contraseña es obligatoria.";
-  if (value.length < 10) return "La contraseña debe tener al menos 10 caracteres.";
+  if (value.length < 6) return "La contraseña debe tener al menos 6 caracteres.";
   if (value.length > 64) return "La contraseña no puede exceder 64 caracteres.";
-  if (!/[A-Z]/.test(value)) return "Debe incluir al menos una letra mayúscula.";
-  if (!/[a-z]/.test(value)) return "Debe incluir al menos una letra minúscula.";
-  if (!/[0-9]/.test(value)) return "Debe incluir al menos un número.";
-  if (!REGEX_ESPECIAL_PASSWORD.test(value)) return "Debe incluir al menos un carácter especial (!@#$%^&*()_+-=).";
   return "";
 }
 
 function calcularFuerzaPassword(value: string): number {
   let fuerza = 0;
+  if (value.length >= 6) fuerza++;
   if (value.length >= 10) fuerza++;
-  if (/[A-Z]/.test(value)) fuerza++;
-  if (/[a-z]/.test(value)) fuerza++;
+  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) fuerza++;
   if (/[0-9]/.test(value)) fuerza++;
   if (REGEX_ESPECIAL_PASSWORD.test(value)) fuerza++;
   return fuerza;
@@ -95,13 +92,14 @@ export default function UsuariosPlataformaPage() {
   const [verificandoUsername, setVerificandoUsername] = useState(false);
   const [enviandoCrear, setEnviandoCrear] = useState(false);
 
+  // ---------- Modal de edición ----------
   const [usuarioEditando, setUsuarioEditando] = useState<DueñoGlobal | null>(null);
   const [modalEdicionOpen, setModalEdicionOpen] = useState(false);
   const [formEdit, setFormEdit] = useState({ nombres: "", apellidos: "", email: "" });
   const [erroresEdit, setErroresEdit] = useState<{ [key: string]: string }>({});
   const [enviandoEdit, setEnviandoEdit] = useState(false);
 
-  const [statusModal, setStatusModal] = useState({ open: false, type: "success", message: "" });
+  const [statusModal, setStatusModal] = useState({ open: false, type: "success" as "success" | "error", message: "" });
   const token = localStorage.getItem("corraltech_token");
 
   const cargarUsuarios = async () => {
@@ -165,7 +163,15 @@ export default function UsuariosPlataformaPage() {
   };
 
   const handleChangeCrear = (campo: string, valor: string) => {
-    const valorNormalizado = campo === "username" ? valor.toLowerCase().replace(/\s/g, "") : valor;
+    let valorNormalizado = valor;
+    if (campo === "nombres" || campo === "apellidos") {
+      valorNormalizado = sanitizarTexto(valor, 14);
+    } else if (campo === "username") {
+      valorNormalizado = sanitizarUsername(valor, 14);
+    } else if (campo === "email") {
+      valorNormalizado = valor.replace(/\s+/g, "");
+    }
+
     setFormCrear((prev) => ({ ...prev, [campo]: valorNormalizado }));
     if (campo === "username") setUsernameDisponible(null);
     validarCampoCrear(campo, valorNormalizado);
@@ -176,7 +182,6 @@ export default function UsuariosPlataformaPage() {
     setFormCrear((prev) => ({ ...prev, [campo]: valorTrim }));
     const error = validarCampoCrear(campo, valorTrim);
 
-    // Verificación de disponibilidad de username al perder el foco
     if (campo === "username" && !error && valorTrim) {
       setVerificandoUsername(true);
       setTimeout(() => {
@@ -191,15 +196,6 @@ export default function UsuariosPlataformaPage() {
   };
 
   const fuerzaPassword = calcularFuerzaPassword(formCrear.password);
-
-  const formCrearValido =
-    !validarNombres(formCrear.nombres) &&
-    !validarApellidos(formCrear.apellidos) &&
-    !validarUsernameFormato(formCrear.username) &&
-    !validarEmail(formCrear.email) &&
-    !validarPassword(formCrear.password) &&
-    usernameDisponible !== false &&
-    !usuarios.some((u) => u.email && formCrear.email.trim() && u.email.toLowerCase() === formCrear.email.trim().toLowerCase());
 
   const resetFormCrear = () => {
     setFormCrear({ nombres: "", apellidos: "", username: "", email: "", password: "" });
@@ -217,19 +213,17 @@ export default function UsuariosPlataformaPage() {
     resetFormCrear();
   };
 
-  // REGISTRAR NUEVO DUEÑO GLOBAL
   const handleCrearUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const datosLimpios = {
-      nombres: formCrear.nombres.trim(),
-      apellidos: formCrear.apellidos.trim(),
-      username: formCrear.username.trim().toLowerCase(),
+      nombres: sanitizarTexto(formCrear.nombres, 14),
+      apellidos: sanitizarTexto(formCrear.apellidos, 14),
+      username: sanitizarUsername(formCrear.username, 14),
       email: formCrear.email.trim().toLowerCase(),
       password: formCrear.password
     };
 
-    // Validación final antes de enviar
     const errores = {
       nombres: validarNombres(datosLimpios.nombres),
       apellidos: validarApellidos(datosLimpios.apellidos),
@@ -264,12 +258,7 @@ export default function UsuariosPlataformaPage() {
     }
   };
 
-  const formEditTocado =
-    usuarioEditando !== null &&
-    (formEdit.nombres !== usuarioEditando.nombres ||
-      formEdit.apellidos !== (usuarioEditando.apellidos || "") ||
-      formEdit.email !== (usuarioEditando.email || ""));
-
+  // ==================== FORMULARIO DE EDICIÓN ====================
   const validarCampoEdit = (campo: string, valor: string) => {
     let error = "";
     switch (campo) {
@@ -300,8 +289,14 @@ export default function UsuariosPlataformaPage() {
   };
 
   const handleChangeEdit = (campo: string, valor: string) => {
-    setFormEdit((prev) => ({ ...prev, [campo]: valor }));
-    validarCampoEdit(campo, valor);
+    let valorNormalizado = valor;
+    if (campo === "nombres" || campo === "apellidos") {
+      valorNormalizado = sanitizarTexto(valor, 14);
+    } else if (campo === "email") {
+      valorNormalizado = valor.replace(/\s+/g, "");
+    }
+    setFormEdit((prev) => ({ ...prev, [campo]: valorNormalizado }));
+    validarCampoEdit(campo, valorNormalizado);
   };
 
   const handleBlurEdit = (campo: string, valor: string) => {
@@ -310,10 +305,8 @@ export default function UsuariosPlataformaPage() {
     validarCampoEdit(campo, valorTrim);
   };
 
-  const formEditValido = !validarNombres(formEdit.nombres) && !validarApellidos(formEdit.apellidos) && !validarEmail(formEdit.email);
-
   const handleCerrarModalEdit = () => {
-    if (formEditTocado) {
+    if (hayCambios) {
       const confirmar = window.confirm("¿Deseas cancelar? Se perderán los cambios realizados.");
       if (!confirmar) return;
     }
@@ -326,8 +319,8 @@ export default function UsuariosPlataformaPage() {
     if (!usuarioEditando) return;
 
     const datosLimpios = {
-      nombres: formEdit.nombres.trim(),
-      apellidos: formEdit.apellidos.trim(),
+      nombres: sanitizarTexto(formEdit.nombres, 14),
+      apellidos: sanitizarTexto(formEdit.apellidos, 14),
       email: formEdit.email.trim().toLowerCase()
     };
 
@@ -372,10 +365,17 @@ export default function UsuariosPlataformaPage() {
 
   const abrirEdicion = (u: DueñoGlobal) => {
     setUsuarioEditando(u);
-    setFormEdit({ nombres: u.nombres, apellidos: u.apellidos || "", email: u.email || "" });
+    setFormEdit({ nombres: u.nombres || "", apellidos: u.apellidos || "", email: u.email || "" });
     setErroresEdit({});
     setModalEdicionOpen(true);
   };
+
+  // Punto 13: Deshabilitar botón si no hay cambios
+  const hayCambios = usuarioEditando ? (
+    formEdit.nombres.trim() !== (usuarioEditando.nombres || "").trim() ||
+    formEdit.apellidos.trim() !== (usuarioEditando.apellidos || "").trim() ||
+    formEdit.email.trim() !== (usuarioEditando.email || "").trim()
+  ) : false;
 
   const usuariosFiltrados = usuarios.filter(u => 
     u.nombres.toLowerCase().includes(busqueda.toLowerCase()) || 
@@ -393,7 +393,10 @@ export default function UsuariosPlataformaPage() {
           <p className="text-sm font-semibold text-[#885f3a]">Módulo de Seguridad y Cuentas de Nivel Raíz (DG)</p>
         </div>
         <button 
-          onClick={() => setModalCrearOpen(true)}
+          onClick={() => {
+            resetFormCrear();
+            setModalCrearOpen(true);
+          }}
           className="px-5 py-2.5 bg-[#822420] hover:bg-[#681c19] text-white rounded-xl text-sm font-bold shadow-md flex items-center justify-center space-x-2 transition-all active:scale-95"
         >
           <UserPlus className="w-4 h-4" />
@@ -481,9 +484,10 @@ export default function UsuariosPlataformaPage() {
         )}
       </div>
 
+      {/* MODAL DE CREACIÓN (Punto 10) */}
       {modalCrearOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-sm">
-          <form onSubmit={handleCrearUsuario} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100">
+          <form noValidate onSubmit={handleCrearUsuario} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100">
             <div className="border-b border-gray-100 pb-3">
               <h3 className="text-lg font-black text-[#264575]">Registrar Nuevo Dueño Global</h3>
               <p className="text-xs font-bold text-[#885f3a]">Generación de credenciales con privilegios raíz</p>
@@ -494,14 +498,16 @@ export default function UsuariosPlataformaPage() {
                   <label className="block text-xs font-bold text-gray-600 mb-1">Nombres *</label>
                   <input
                     type="text"
-                    required
                     value={formCrear.nombres}
                     onChange={(e) => handleChangeCrear("nombres", e.target.value)}
                     onBlur={(e) => handleBlurCrear("nombres", e.target.value)}
-                    maxLength={50}
-                    className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresCrear.nombres ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                    maxLength={14}
+                    placeholder="Máx 14 carácteres"
+                    className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      erroresCrear.nombres ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`}
                   />
-                  {erroresCrear.nombres && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresCrear.nombres}</p>}
+                  {erroresCrear.nombres && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresCrear.nombres}</span>}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Apellidos</label>
@@ -510,10 +516,13 @@ export default function UsuariosPlataformaPage() {
                     value={formCrear.apellidos}
                     onChange={(e) => handleChangeCrear("apellidos", e.target.value)}
                     onBlur={(e) => handleBlurCrear("apellidos", e.target.value)}
-                    maxLength={50}
-                    className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresCrear.apellidos ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                    maxLength={14}
+                    placeholder="Máx 14 carácteres"
+                    className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      erroresCrear.apellidos ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`}
                   />
-                  {erroresCrear.apellidos && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresCrear.apellidos}</p>}
+                  {erroresCrear.apellidos && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresCrear.apellidos}</span>}
                 </div>
               </div>
               <div>
@@ -521,13 +530,14 @@ export default function UsuariosPlataformaPage() {
                 <div className="relative">
                   <input
                     type="text"
-                    required
                     value={formCrear.username}
                     onChange={(e) => handleChangeCrear("username", e.target.value)}
                     onBlur={(e) => handleBlurCrear("username", e.target.value)}
-                    maxLength={30}
-                    placeholder="ejemplo.dg"
-                    className={`w-full px-4 py-2 pr-9 border rounded-xl focus:ring-1 outline-none font-medium ${erroresCrear.username ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                    maxLength={14}
+                    placeholder="ejemplo.dg (máx 14)"
+                    className={`w-full px-4 py-2 pr-9 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      erroresCrear.username ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`}
                   />
                   {verificandoUsername && (
                     <Loader2 className="w-4 h-4 text-gray-400 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />
@@ -537,29 +547,32 @@ export default function UsuariosPlataformaPage() {
                   )}
                 </div>
                 {erroresCrear.username ? (
-                  <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresCrear.username}</p>
+                  <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresCrear.username}</span>
                 ) : usernameDisponible === true ? (
-                  <p className="text-green-600 text-[11px] font-semibold mt-1">Username disponible.</p>
+                  <span className="text-green-600 text-[11px] font-bold mt-1 block">Username disponible.</span>
                 ) : null}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">Email Corporativo</label>
                 <input
                   type="email"
+                  maxLength={100}
                   value={formCrear.email}
                   onChange={(e) => handleChangeCrear("email", e.target.value)}
                   onBlur={(e) => handleBlurCrear("email", e.target.value)}
                   placeholder="correo@corraltech.com"
-                  className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresCrear.email ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                  className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                    erroresCrear.email ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                  }`}
                 />
                 {erroresCrear.email ? (
-                  <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresCrear.email}</p>
+                  <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresCrear.email}</span>
                 ) : (
                   formCrear.email.trim() &&
                   !formCrear.email.trim().toLowerCase().endsWith(`@${DOMINIO_CORPORATIVO}`) && (
-                    <p className="text-amber-600 text-[11px] font-semibold mt-1">
+                    <span className="text-amber-600 text-[11px] font-semibold mt-1 block">
                       Recomendado: usar un correo del dominio @{DOMINIO_CORPORATIVO}.
-                    </p>
+                    </span>
                   )
                 )}
               </div>
@@ -568,12 +581,13 @@ export default function UsuariosPlataformaPage() {
                 <div className="relative">
                   <input
                     type={mostrarPassword ? "text" : "password"}
-                    required
-                    minLength={10}
                     value={formCrear.password}
                     onChange={(e) => handleChangeCrear("password", e.target.value)}
                     onBlur={(e) => validarCampoCrear("password", e.target.value)}
-                    className={`w-full pl-9 pr-9 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresCrear.password ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                    placeholder="Mínimo 6 caracteres"
+                    className={`w-full pl-9 pr-9 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      erroresCrear.password ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`}
                   />
                   <Key className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <button
@@ -591,7 +605,7 @@ export default function UsuariosPlataformaPage() {
                       {[0, 1, 2, 3, 4].map((i) => (
                         <div
                           key={i}
-                          className={`h-1.5 flex-1 rounded-full ${i < fuerzaPassword ? COLORES_FUERZA[fuerzaPassword - 1] : "bg-gray-150 bg-gray-200"}`}
+                          className={`h-1.5 flex-1 rounded-full ${i < fuerzaPassword ? COLORES_FUERZA[fuerzaPassword - 1] : "bg-gray-200"}`}
                         />
                       ))}
                     </div>
@@ -600,7 +614,7 @@ export default function UsuariosPlataformaPage() {
                     </p>
                   </div>
                 )}
-                {erroresCrear.password && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresCrear.password}</p>}
+                {erroresCrear.password && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresCrear.password}</span>}
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 w-full">
@@ -609,21 +623,21 @@ export default function UsuariosPlataformaPage() {
               </button>
               <button
                 type="submit"
-                disabled={!formCrearValido || enviandoCrear}
-                className="px-5 py-2 bg-[#822420] hover:bg-[#681c19] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#822420] text-white rounded-xl font-bold text-xs shadow-md transition-colors flex items-center gap-2"
+                disabled={enviandoCrear}
+                className="px-5 py-2 bg-[#822420] hover:bg-[#681c19] disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
               >
                 {enviandoCrear && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Crear Administrador
+                <span>Crear Administrador</span>
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* MODAL PARA EDICIÓN DE DG */}
+      {/* MODAL PARA EDICIÓN DE DG (Punto 10 & 13) */}
       {modalEdicionOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-sm">
-          <form onSubmit={handleGuardarEdicion} className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-gray-100">
+          <form noValidate onSubmit={handleGuardarEdicion} className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-gray-100">
             <div className="border-b border-gray-100 pb-3">
               <h3 className="text-lg font-black text-[#264575]">Modificar Perfil Máster</h3>
               <p className="text-xs font-bold text-[#885f3a]">Actualización de identidad para @{usuarioEditando?.username}</p>
@@ -633,37 +647,45 @@ export default function UsuariosPlataformaPage() {
                 <label className="block text-xs font-bold text-gray-600 mb-1">Nombres *</label>
                 <input
                   type="text"
-                  required
+                  maxLength={14}
                   value={formEdit.nombres}
                   onChange={(e) => handleChangeEdit("nombres", e.target.value)}
                   onBlur={(e) => handleBlurEdit("nombres", e.target.value)}
-                  maxLength={50}
-                  className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresEdit.nombres ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                  placeholder="Máx 14 carácteres"
+                  className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                    erroresEdit.nombres ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                  }`}
                 />
-                {erroresEdit.nombres && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresEdit.nombres}</p>}
+                {erroresEdit.nombres && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresEdit.nombres}</span>}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">Apellidos</label>
                 <input
                   type="text"
+                  maxLength={14}
                   value={formEdit.apellidos}
                   onChange={(e) => handleChangeEdit("apellidos", e.target.value)}
                   onBlur={(e) => handleBlurEdit("apellidos", e.target.value)}
-                  maxLength={50}
-                  className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresEdit.apellidos ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                  placeholder="Máx 14 carácteres"
+                  className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                    erroresEdit.apellidos ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                  }`}
                 />
-                {erroresEdit.apellidos && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresEdit.apellidos}</p>}
+                {erroresEdit.apellidos && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresEdit.apellidos}</span>}
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">Email Corporativo</label>
                 <input
                   type="email"
+                  maxLength={100}
                   value={formEdit.email}
                   onChange={(e) => handleChangeEdit("email", e.target.value)}
                   onBlur={(e) => handleBlurEdit("email", e.target.value)}
-                  className={`w-full px-4 py-2 border rounded-xl focus:ring-1 outline-none font-medium ${erroresEdit.email ? "border-red-400 focus:ring-red-400" : "border-gray-200 focus:ring-[#264575]"}`}
+                  className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                    erroresEdit.email ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                  }`}
                 />
-                {erroresEdit.email && <p className="text-red-600 text-[11px] font-semibold mt-1">{erroresEdit.email}</p>}
+                {erroresEdit.email && <span className="text-red-600 text-[11px] font-bold mt-1 block">{erroresEdit.email}</span>}
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 w-full">
@@ -672,23 +694,22 @@ export default function UsuariosPlataformaPage() {
               </button>
               <button
                 type="submit"
-                disabled={!formEditValido || enviandoEdit}
-                className="px-5 py-2 bg-[#264575] hover:bg-[#1e355b] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#264575] text-white rounded-xl font-bold text-xs shadow-md transition-colors flex items-center gap-2"
+                disabled={!hayCambios || enviandoEdit}
+                className="px-5 py-2 bg-[#264575] hover:bg-[#1e355b] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center space-x-1.5"
               >
                 {enviandoEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Guardar Cambios
+                <span>Guardar Cambios</span>
               </button>
             </div>
           </form>
         </div>
       )}
 
+      {/* MODAL STATUS */}
       {statusModal.open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-xs w-full p-5 text-center shadow-2xl border border-gray-50 space-y-3">
-            <div className="flex justify-center">
-              {statusModal.type === "success" ? <CheckCircle className="w-8 h-8 text-green-600" /> : <XCircle className="w-8 h-8 text-red-600" />}
-            </div>
+            <div className="flex justify-center">{statusModal.type === "success" ? <CheckCircle className="w-8 h-8 text-green-600" /> : <XCircle className="w-8 h-8 text-red-600" />}</div>
             <p className="text-sm font-bold text-gray-700 leading-tight">{statusModal.message}</p>
             <button type="button" onClick={() => setStatusModal({ ...statusModal, open: false })} className="w-full py-2 bg-[#264575] hover:bg-[#1e355b] text-white text-xs font-bold rounded-xl shadow transition-colors">
               Aceptar

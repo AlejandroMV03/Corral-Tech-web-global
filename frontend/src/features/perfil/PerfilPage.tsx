@@ -13,6 +13,7 @@ import {
   XCircle,
   Loader2
 } from "lucide-react";
+import { sanitizarTexto } from "../../lib/sanitizer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -77,10 +78,16 @@ export default function PerfilPage() {
       return;
     }
 
-    // Si ya está editando, guardamos los cambios
+    // Sanitización antes de enviar
+    const payload = {
+      nombres: sanitizarTexto(formData.nombres, 14),
+      apellidos: sanitizarTexto(formData.apellidos, 14),
+      email: formData.email.trim().toLowerCase()
+    };
+
     setGuardando(true);
     try {
-      await axios.patch(`${API_URL}/master/perfil`, formData, { headers: getHeaders() });
+      await axios.patch(`${API_URL}/master/perfil`, payload, { headers: getHeaders() });
       setStatusModal({ open: true, type: "success", message: "Tu perfil se ha actualizado correctamente." });
       setIsEditing(false);
       fetchPerfil();
@@ -93,7 +100,6 @@ export default function PerfilPage() {
 
   const handleCancelar = () => {
     if (isEditing) {
-      // Si está editando, desactiva edición y restaura valores originales
       setIsEditing(false);
       if (perfil) {
         setFormData({
@@ -103,7 +109,6 @@ export default function PerfilPage() {
         });
       }
     } else {
-      // Redirige al Dashboard Global
       navigate("/dashboard-global");
     }
   };
@@ -113,7 +118,7 @@ export default function PerfilPage() {
       {/* CONTENEDOR MODAL PRINCIPAL */}
       <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-gray-100 overflow-hidden relative transition-all">
         
-        {/* ENCABEZADO DECORATIVO CON TONOS CORRALTECH */}
+        {/* ENCABEZADO DECORATIVO */}
         <div className="bg-gradient-to-r from-[#1d3356] via-[#264575] to-[#1d3356] p-6 text-white relative">
           <button
             onClick={() => navigate("/dashboard-global")}
@@ -165,7 +170,7 @@ export default function PerfilPage() {
                 </div>
               </div>
 
-              {/* CAMPOS DE FORMULARIO (MODO LECTURA / EDICIÓN) */}
+              {/* CAMPOS DE FORMULARIO */}
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* NOMBRE */}
@@ -177,8 +182,10 @@ export default function PerfilPage() {
                       <input
                         type="text"
                         required
+                        maxLength={14}
                         value={formData.nombres}
-                        onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, nombres: sanitizarTexto(e.target.value, 14) })}
+                        placeholder="Máx 14 caracteres"
                         className="w-full px-4 py-2.5 bg-amber-50/20 border-2 border-[#264575] rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#264575]/20 transition-all"
                       />
                     ) : (
@@ -196,8 +203,10 @@ export default function PerfilPage() {
                     {isEditing ? (
                       <input
                         type="text"
+                        maxLength={14}
                         value={formData.apellidos}
-                        onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, apellidos: sanitizarTexto(e.target.value, 14) })}
+                        placeholder="Máx 14 caracteres"
                         className="w-full px-4 py-2.5 bg-amber-50/20 border-2 border-[#264575] rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#264575]/20 transition-all"
                       />
                     ) : (
@@ -217,8 +226,10 @@ export default function PerfilPage() {
                     <input
                       type="email"
                       required
+                      maxLength={100}
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value.replace(/\s+/g, "") })}
+                      placeholder="correo@ejemplo.com"
                       className="w-full px-4 py-2.5 bg-amber-50/20 border-2 border-[#264575] rounded-xl text-xs font-bold text-gray-800 outline-none focus:ring-2 focus:ring-[#264575]/20 transition-all"
                     />
                   ) : (
@@ -229,7 +240,7 @@ export default function PerfilPage() {
                   )}
                 </div>
 
-                {/* NOMBRE DE USUARIO (SOLO LECTURA) */}
+                {/* USERNAME (SOLO LECTURA) */}
                 <div>
                   <label className="block text-[11px] font-black text-gray-400 uppercase mb-1">
                     Nombre de Usuario (Identificador Único)

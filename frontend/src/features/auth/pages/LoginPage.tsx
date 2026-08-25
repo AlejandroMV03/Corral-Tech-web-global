@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios"; 
 import logoCorralTech from "../../../assets/Logo.png";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { sanitizarUsername } from "../../../lib/sanitizer";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 interface LoginPageProps {
   onLoginSuccess: () => void;
 }
@@ -29,7 +32,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     };
 
     try {
-     const response = await axios.post(`${API_URL}/master/auth/login`, payload, {        headers: { "Content-Type": "application/json" }
+      const response = await axios.post(`${API_URL}/master/auth/login`, payload, {
+        headers: { "Content-Type": "application/json" }
       });
 
       const { access_token, usuario } = response.data;
@@ -40,14 +44,19 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         return; 
       }
 
+      // Persistencia de sesión JWT y credenciales
       localStorage.setItem("corraltech_token", access_token);
+      localStorage.setItem("corraltech_user", JSON.stringify(usuario));
       localStorage.setItem("username", username.trim());
       if (usuario?.rol) {
         localStorage.setItem("user_role", usuario.rol);
       }
-      
+
+      // Configuración inmediata de cabecera de autenticación
+      axios.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+
       onLoginSuccess();
-      navigate("/dashboard"); 
+      navigate("/dashboard-global"); 
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.detail || "Usuario o contraseña incorrectos.");
@@ -58,7 +67,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   return (
     <div className="relative flex min-h-screen bg-[#FDF8F2]">
-
       <div className="flex flex-col items-center justify-center flex-1 px-4 py-12 sm:px-6 lg:px-8">
         
         {!showAlert ? (
@@ -88,7 +96,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
               <form className="space-y-5" onSubmit={handleSubmit}>
                 
-                {/* Mensaje de error dinámico en caso de credenciales inválidas o restricción de rol */}
                 {error && (
                   <div className="bg-red-50 border-l-4 border-[#7A2E22] p-3 rounded-r-xl flex items-start space-x-2 transition-all">
                     <AlertCircle className="w-5 h-5 text-[#7A2E22] shrink-0 mt-0.5" />
@@ -104,9 +111,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     id="username"
                     type="text"
                     required
+                    maxLength={14}
                     disabled={loading}
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => setUsername(sanitizarUsername(e.target.value, 14))}
                     className="w-full px-4 py-2.5 border border-[#C4A484] rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-[#7A2E22] focus:border-[#7A2E22] bg-white text-gray-900 transition-all disabled:opacity-50"
                     placeholder="Ingrese su usuario"
                   />
@@ -151,7 +159,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   </button>
                 </div>
 
-                {/* Enlace Olvidaste Contraseña */}
                 <div className="text-center pt-1">
                   <button
                     type="button"
@@ -166,7 +173,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
           </div>
         ) : (
-
           <div className="w-full max-w-md p-6 space-y-6 text-center bg-white rounded-2xl border border-red-200 shadow-2xl transition-all">
             <h2 className="text-2xl font-black tracking-widest text-[#7A2E22]">
               ¡ALERTA!

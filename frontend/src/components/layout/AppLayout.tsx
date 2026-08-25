@@ -1,18 +1,66 @@
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
-import { LogOut, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { LogOut, AlertTriangle, Loader2 } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 interface AppLayoutProps {
   onLogout: () => void;
 }
 
 export default function AppLayout({ onLogout }: AppLayoutProps) {
+  const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+
+  useEffect(() => {
+    const validarSesionAlRecargar = async () => {
+      const token = localStorage.getItem("corraltech_token");
+
+      if (!token) {
+        setVerificandoSesion(false);
+        onLogout();
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      // Configurar token en los encabezados globales de Axios
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+      try {
+        // Validar token activo contra el endpoint de perfil
+        await axios.get(`${API_URL}/master/perfil`);
+      } catch (error) {
+        // Token expirado o corrupto
+        localStorage.removeItem("corraltech_token");
+        localStorage.removeItem("corraltech_user");
+        delete axios.defaults.headers.common["Authorization"];
+        onLogout();
+        navigate("/login", { replace: true });
+      } finally {
+        setVerificandoSesion(false);
+      }
+    };
+
+    validarSesionAlRecargar();
+  }, [navigate, onLogout]);
 
   const abrirModal = () => setShowLogoutModal(true);
   const cerrarModal = () => setShowLogoutModal(false);
+
+  if (verificandoSesion) {
+    return (
+      <div className="min-h-screen bg-[#fff8ed] flex flex-col items-center justify-center space-y-3">
+        <Loader2 className="w-10 h-10 text-[#264575] animate-spin" />
+        <span className="text-xs font-bold text-[#885f3a] tracking-wider">
+          Verificando sesión activa...
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#fff8ed] font-sans antialiased text-gray-800 relative">

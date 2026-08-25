@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Search, Edit, ToggleLeft, ToggleRight, Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Search, Edit, ToggleLeft, ToggleRight, Loader2, CheckCircle, XCircle, Key } from "lucide-react";
+import { sanitizarTexto } from "../../../lib/sanitizer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -22,15 +23,24 @@ export default function UsuariosRanchoPage() {
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Estados del Modal de Edición Controlada y Roles
+  // Modal Edición de Datos y Rol
   const [modalEditOpen, setModalEditOpen] = useState(false);
   const [usuarioEditando, setUsuarioEditando] = useState<UsuarioRanchoConsolidado | null>(null);
   const [formEdit, setFormEdit] = useState({ nombres: "", apellidos: "", email: "", id_rol: 4, activo: true });
+  const [errorsEdit, setErrorsEdit] = useState<Record<string, string>>({});
+  const [guardandoEdit, setGuardandoEdit] = useState(false);
 
-  const [statusModal, setStatusModal] = useState({ open: false, type: "success", message: "" });
+  // Modal Cambio Forzado de Contraseña
+  const [modalPasswordOpen, setModalPasswordOpen] = useState(false);
+  const [usuarioPasswordEditando, setUsuarioPasswordEditando] = useState<UsuarioRanchoConsolidado | null>(null);
+  const [nuevaPassword, setNuevaPassword] = useState("");
+  const [errorPassword, setErrorPassword] = useState("");
+  const [guardandoPassword, setGuardandoPassword] = useState(false);
+
+  // Modal Status
+  const [statusModal, setStatusModal] = useState({ open: false, type: "success" as "success" | "error", message: "" });
   const token = localStorage.getItem("corraltech_token");
 
-  // Catálogo de roles locales según la base de datos (Supabase)
   const rolesCatalogo = [
     { id: 4, nombre: "Superadministrador rancho" },
     { id: 5, nombre: "Administrador rancho" },
@@ -48,8 +58,7 @@ export default function UsuariosRanchoPage() {
       });
       setUsuarios(res.data);
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "No se pudo recuperar la lista consolidada de personal de los ranchos.";
-      mostrarStatus("error", msg);
+      mostrarStatus("error", err.response?.data?.detail || "No se pudo recuperar el personal de los ranchos.");
     } finally {
       setLoading(false);
     }
@@ -63,8 +72,45 @@ export default function UsuariosRanchoPage() {
     setStatusModal({ open: true, type, message });
   };
 
+  const limpiarErrorEdit = (campo: string) => {
+    if (errorsEdit[campo]) {
+      setErrorsEdit((prev) => {
+        const nuevo = { ...prev };
+        delete nuevo[campo];
+        return nuevo;
+      });
+    }
+  };
+
+  const validarFormEdit = () => {
+    const nuevosErrores: Record<string, string> = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!formEdit.nombres.trim()) {
+      nuevosErrores.nombres = "El nombre es obligatorio.";
+    } else if (formEdit.nombres.length > 14) {
+      nuevosErrores.nombres = "El nombre no debe exceder los 14 caracteres.";
+    }
+
+    if (formEdit.apellidos.trim() && formEdit.apellidos.length > 14) {
+      nuevosErrores.apellidos = "Los apellidos no deben exceder los 14 caracteres.";
+    }
+
+    if (formEdit.email.trim()) {
+      if (!emailRegex.test(formEdit.email.trim())) {
+        nuevosErrores.email = "Formato de correo electrónico inválido.";
+      } else if (formEdit.email.trim().length > 100) {
+        nuevosErrores.email = "El correo no debe exceder los 100 caracteres.";
+      }
+    }
+
+    setErrorsEdit(nuevosErrores);
+    return Object.keys(nuevosErrores).length === 0;
+  };
+
   const abrirModalEdicion = (u: UsuarioRanchoConsolidado) => {
     setUsuarioEditando(u);
+    setErrorsEdit({});
     setFormEdit({
       nombres: u.nombres,
       apellidos: u.apellidos || "",
@@ -75,9 +121,19 @@ export default function UsuariosRanchoPage() {
     setModalEditOpen(true);
   };
 
+  const abrirModalPassword = (u: UsuarioRanchoConsolidado) => {
+    setUsuarioPasswordEditando(u);
+    setNuevaPassword("");
+    setErrorPassword("");
+    setModalPasswordOpen(true);
+  };
+
   const handleGuardarCambios = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usuarioEditando) return;
+    if (!validarFormEdit()) return;
+
+    setGuardandoEdit(true);
     try {
       await axios.patch(
         `${API_URL}/master/ranchos/${usuarioEditando.id_rancho}/usuarios/${usuarioEditando.id_usuario}?id_rol=${formEdit.id_rol}&activo=${formEdit.activo}`,
@@ -85,11 +141,42 @@ export default function UsuariosRanchoPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setModalEditOpen(false);
-      mostrarStatus("success", "Cuenta local actualizada y registrada en la bitácora de auditoría.");
+      mostrarStatus("success", "Cuenta local actualizada y auditada correctamente.");
       cargarUsuariosConsolidados();
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "Error al procesar la actualización del usuario.";
-      mostrarStatus("error", msg);
+      mostrarStatus("error", err.response?.data?.detail || "Error al actualizar el usuario.");
+    } finally {
+      setGuardandoEdit(false);
+    }
+  };
+
+  const handleProcesarPasswordRancho = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!usuarioPasswordEditando) return;
+
+    if (!nuevaPassword.trim()) {
+      setErrorPassword("La contraseña es obligatoria.");
+      return;
+    } else if (nuevaPassword.length < 6) {
+      setErrorPassword("La contraseña debe tener mínimo 6 caracteres.");
+      return;
+    }
+
+    setGuardandoPassword(true);
+    try {
+      await axios.patch(
+        `${API_URL}/master/ranchos/${usuarioPasswordEditando.id_rancho}/usuarios/${usuarioPasswordEditando.id_usuario}/reset-password`,
+        { nueva_password: nuevaPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setModalPasswordOpen(false);
+      setNuevaPassword("");
+      setErrorPassword("");
+      mostrarStatus("success", `Contraseña de @${usuarioPasswordEditando.username} reestablecida con éxito.`);
+    } catch (err: any) {
+      mostrarStatus("error", err.response?.data?.detail || "Error al procesar el cambio de contraseña.");
+    } finally {
+      setGuardandoPassword(false);
     }
   };
 
@@ -102,12 +189,20 @@ export default function UsuariosRanchoPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setUsuarios(usuarios.map(usr => usr.id_usuario === u.id_usuario ? { ...usr, activo: nuevoEstado } : usr));
-      mostrarStatus("success", nuevoEstado ? "Acceso al rancho restablecido." : "Baja lógica ejecutada: Acceso revocado.");
+      mostrarStatus("success", nuevoEstado ? "Acceso al rancho restablecido." : "Baja lógica ejecutada.");
     } catch (err: any) {
-      const msg = err.response?.data?.detail || "No se pudo alterar el estado de acceso.";
-      mostrarStatus("error", msg);
+      mostrarStatus("error", err.response?.data?.detail || "No se pudo alterar el estado de acceso.");
     }
   };
+
+  // Punto 13: Deshabilitar botón si no hay cambios
+  const hayCambios = usuarioEditando ? (
+    formEdit.nombres.trim() !== (usuarioEditando.nombres || "").trim() ||
+    formEdit.apellidos.trim() !== (usuarioEditando.apellidos || "").trim() ||
+    formEdit.email.trim() !== (usuarioEditando.email || "").trim() ||
+    Number(formEdit.id_rol) !== Number(usuarioEditando.id_rol) ||
+    formEdit.activo !== usuarioEditando.activo
+  ) : false;
 
   const usuariosFiltrados = usuarios.filter(u => {
     const termino = busqueda.toLowerCase();
@@ -124,10 +219,10 @@ export default function UsuariosRanchoPage() {
     <div className="max-w-6xl mx-auto space-y-6 p-6 pb-12 animate-fade-in">
       <div className="flex flex-col space-y-1">
         <h1 className="text-3xl font-black text-[#264575] tracking-tight">Usuarios por Rancho</h1>
-        <p className="text-sm font-semibold text-[#885f3a]">Supervisión operativa y asignación de roles</p>
+        <p className="text-sm font-semibold text-[#885f3a]">Supervisión operativa, asignación de roles y control de credenciales</p>
       </div>
 
-      <div className="flex items-center space-x-3 bg-white border border-gray-200/80 p-3.5 rounded-xl shadow-sm max-w-xl">
+      <div className="flex items-center space-x-3 bg-white border border-gray-200/80 p-3.5 rounded-xl shadow-sm max-w-xl transition-all focus-within:border-[#264575] focus-within:ring-1 focus-within:ring-[#264575]">
         <Search className="w-5 h-5 text-gray-400" />
         <input 
           type="text" 
@@ -142,18 +237,18 @@ export default function UsuariosRanchoPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center p-20 space-y-3">
             <Loader2 className="w-9 h-9 text-[#264575] animate-spin" />
-            <p className="text-sm font-bold text-gray-500">Sincronizando cuentas con Supabase...</p>
+            <p className="text-sm font-bold text-gray-500">Sincronizando cuentas locales...</p>
           </div>
         ) : usuariosFiltrados.length === 0 ? (
-          <div className="text-center p-16 text-gray-400 font-semibold text-sm">No se encontraron registros vinculados a ningún rancho.</div>
+          <div className="text-center p-16 text-gray-400 font-semibold text-sm">No se encontraron registros de personal.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#264575] text-[11px] font-bold uppercase text-white tracking-wider">
                   <th className="px-6 py-4 rounded-tl-2xl">Personal del Rancho</th>
-                  <th className="px-6 py-4">Nombre de Usuario</th>
-                  <th className="px-6 py-4">Rancho / Cliente</th>
+                  <th className="px-6 py-4">Username</th>
+                  <th className="px-6 py-4">Rancho / Tenant</th>
                   <th className="px-6 py-4">Nivel de Acceso</th>
                   <th className="px-6 py-4 text-center">Estado</th>
                   <th className="px-6 py-4 text-center rounded-tr-2xl">Acciones</th>
@@ -183,14 +278,24 @@ export default function UsuariosRanchoPage() {
                       </button>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button 
-                        type="button" 
-                        onClick={() => abrirModalEdicion(u)} 
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-[#264575] hover:text-white text-gray-700 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 mx-auto"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>Editar</span>
-                      </button>
+                      <div className="flex items-center justify-center space-x-1.5">
+                        <button 
+                          type="button" 
+                          onClick={() => abrirModalEdicion(u)} 
+                          className="p-2 text-[#264575] hover:bg-[#264575]/10 rounded-xl transition-all inline-block"
+                          title="Editar rol y datos"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => abrirModalPassword(u)} 
+                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all inline-block"
+                          title="Restablecer contraseña manualmente"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -200,9 +305,10 @@ export default function UsuariosRanchoPage() {
         )}
       </div>
 
+      {/* MODAL DE EDICIÓN DE ROL (Puntos 10 & 13) */}
       {modalEditOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <form onSubmit={handleGuardarCambios} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-fade-in">
+          <form noValidate onSubmit={handleGuardarCambios} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100">
             <div>
               <h3 className="text-lg font-black text-[#264575]">Modificar Usuario de Rancho</h3>
               <p className="text-xs font-bold text-[#885f3a]">Asignado al tenant: {usuarioEditando?.nombre_rancho}</p>
@@ -211,16 +317,55 @@ export default function UsuariosRanchoPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Nombre *</label>
-                  <input type="text" required value={formEdit.nombres} onChange={(e) => setFormEdit({ ...formEdit, nombres: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl outline-none font-medium" />
+                  <input 
+                    type="text" 
+                    maxLength={14}
+                    value={formEdit.nombres} 
+                    onChange={(e) => {
+                      setFormEdit({ ...formEdit, nombres: sanitizarTexto(e.target.value, 14) });
+                      limpiarErrorEdit("nombres");
+                    }} 
+                    placeholder="Máx 14 car."
+                    className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      errorsEdit.nombres ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`} 
+                  />
+                  {errorsEdit.nombres && <span className="text-red-600 text-[11px] font-bold mt-1 block">{errorsEdit.nombres}</span>}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Apellidos</label>
-                  <input type="text" value={formEdit.apellidos} onChange={(e) => setFormEdit({ ...formEdit, apellidos: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl outline-none font-medium" />
+                  <input 
+                    type="text" 
+                    maxLength={14}
+                    value={formEdit.apellidos} 
+                    onChange={(e) => {
+                      setFormEdit({ ...formEdit, apellidos: sanitizarTexto(e.target.value, 14) });
+                      limpiarErrorEdit("apellidos");
+                    }} 
+                    placeholder="Máx 14 car."
+                    className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                      errorsEdit.apellidos ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                    }`} 
+                  />
+                  {errorsEdit.apellidos && <span className="text-red-600 text-[11px] font-bold mt-1 block">{errorsEdit.apellidos}</span>}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-600 mb-1">Correo Electrónico *</label>
-                <input type="email" required value={formEdit.email} onChange={(e) => setFormEdit({ ...formEdit, email: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl outline-none font-medium" />
+                <label className="block text-xs font-bold text-gray-600 mb-1">Correo Electrónico</label>
+                <input 
+                  type="email" 
+                  maxLength={100}
+                  value={formEdit.email} 
+                  onChange={(e) => {
+                    setFormEdit({ ...formEdit, email: e.target.value.replace(/\s+/g, "") });
+                    limpiarErrorEdit("email");
+                  }} 
+                  placeholder="correo@ejemplo.com"
+                  className={`w-full px-4 py-2 border rounded-xl outline-none font-medium text-xs transition-colors ${
+                    errorsEdit.email ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-[#264575]"
+                  }`} 
+                />
+                {errorsEdit.email && <span className="text-red-600 text-[11px] font-bold mt-1 block">{errorsEdit.email}</span>}
               </div>
               
               <div>
@@ -228,7 +373,7 @@ export default function UsuariosRanchoPage() {
                 <select 
                   value={formEdit.id_rol} 
                   onChange={(e) => setFormEdit({ ...formEdit, id_rol: Number(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-200 bg-white rounded-xl outline-none font-bold text-gray-700"
+                  className="w-full px-4 py-2 border border-gray-200 bg-white rounded-xl outline-none font-bold text-gray-700 text-xs focus:ring-1 focus:ring-[#264575] cursor-pointer"
                 >
                   {rolesCatalogo.map((rol) => (
                     <option key={rol.id} value={rol.id}>{rol.nombre}</option>
@@ -241,7 +386,7 @@ export default function UsuariosRanchoPage() {
                 <select 
                   value={String(formEdit.activo)} 
                   onChange={(e) => setFormEdit({ ...formEdit, activo: e.target.value === "true" })}
-                  className="w-full px-4 py-2 border border-gray-200 bg-white rounded-xl outline-none font-bold text-gray-700"
+                  className="w-full px-4 py-2 border border-gray-200 bg-white rounded-xl outline-none font-bold text-gray-700 text-xs focus:ring-1 focus:ring-[#264575] cursor-pointer"
                 >
                   <option value="true">Habilitado (Acceso total a la App Móvil)</option>
                   <option value="false">Inhabilitado (Baja Lógica / Suspendido)</option>
@@ -250,19 +395,67 @@ export default function UsuariosRanchoPage() {
             </div>
 
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-              <button type="button" onClick={() => setModalEditOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-xs text-gray-600 hover:bg-gray-50">Cancelar</button>
-              <button type="submit" className="px-5 py-2 bg-[#264575] text-white rounded-xl font-bold text-xs shadow-md">Guardar y Auditar</button>
+              <button type="button" onClick={() => setModalEditOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-xs text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button 
+                type="submit" 
+                disabled={!hayCambios || guardandoEdit}
+                className="px-5 py-2 bg-[#264575] hover:bg-[#1e355b] text-white rounded-xl font-bold text-xs shadow-md transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center space-x-1.5"
+              >
+                {guardandoEdit && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Guardar y Auditar</span>
+              </button>
             </div>
           </form>
         </div>
       )}
 
+      {/* MODAL RESTABLECER CONTRASEÑA (Puntos 5 & 10) */}
+      {modalPasswordOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-fade-in">
+          <form noValidate onSubmit={handleProcesarPasswordRancho} className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-gray-100">
+            <div>
+              <h3 className="text-lg font-black text-amber-600 flex items-center gap-2"><Key className="w-5 h-5"/> Blanqueo de Contraseña</h3>
+              <p className="text-xs font-bold text-gray-500">Usuario: @{usuarioPasswordEditando?.username} • Rancho: {usuarioPasswordEditando?.nombre_rancho}</p>
+            </div>
+            <div className="text-sm">
+              <label className="block text-xs font-bold text-gray-600 mb-1">Nueva Contraseña Forzada *</label>
+              <input 
+                type="text" 
+                value={nuevaPassword} 
+                onChange={(e) => {
+                  setNuevaPassword(e.target.value);
+                  if (errorPassword) setErrorPassword("");
+                }} 
+                placeholder="Mínimo 6 caracteres" 
+                className={`w-full px-4 py-2 border rounded-xl outline-none font-mono text-xs transition-colors ${
+                  errorPassword ? "border-red-500 bg-red-50/20 focus:ring-1 focus:ring-red-500" : "border-gray-200 focus:ring-1 focus:ring-amber-500"
+                }`} 
+              />
+              {errorPassword && <span className="text-red-600 text-[11px] font-bold mt-1 block">{errorPassword}</span>}
+              <p className="text-[11px] text-amber-600 mt-2 font-medium">⚠️ Se guardará y auditará el cambio manual en la base de datos central.</p>
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+              <button type="button" onClick={() => setModalPasswordOpen(false)} className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-xs text-gray-600 hover:bg-gray-50 transition-colors">Cancelar</button>
+              <button 
+                type="submit" 
+                disabled={guardandoPassword}
+                className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                {guardandoPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Actualizar Contraseña</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* STATUS FEEDBACK */}
       {statusModal.open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-xs w-full p-5 text-center shadow-2xl border border-gray-50 space-y-3">
             <div className="flex justify-center">{statusModal.type === "success" ? <CheckCircle className="w-8 h-8 text-green-600" /> : <XCircle className="w-8 h-8 text-red-600" />}</div>
             <p className="text-sm font-bold text-gray-700 leading-tight">{statusModal.message}</p>
-            <button type="button" onClick={() => setStatusModal({ ...statusModal, open: false })} className="w-full py-2 bg-[#264575] text-white text-xs font-bold rounded-xl shadow">Aceptar</button>
+            <button type="button" onClick={() => setStatusModal({ ...statusModal, open: false })} className="w-full py-2 bg-[#264575] text-white text-xs font-bold rounded-xl shadow transition-colors">Aceptar</button>
           </div>
         </div>
       )}

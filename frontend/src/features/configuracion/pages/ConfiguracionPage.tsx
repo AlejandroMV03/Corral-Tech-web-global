@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Edit2
 } from "lucide-react";
+import { sanitizarTexto } from "../../../lib/sanitizer";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -135,9 +136,15 @@ export default function ConfiguracionPage() {
   const handleCrearRol = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/master/config/roles`, formRol, { headers: getHeaders() });
+      const payload = {
+        ...formRol,
+        nombre: sanitizarTexto(formRol.nombre, 14),
+        descripcion: formRol.descripcion.trim()
+      };
+
+      await axios.post(`${API_URL}/master/config/roles`, payload, { headers: getHeaders() });
       setModalRolOpen(false);
-      mostrarStatus("success", `Rol '${formRol.nombre}' creado exitosamente.`);
+      mostrarStatus("success", `Rol '${payload.nombre}' creado exitosamente.`);
       cargarRoles(formRol.scope as "GLOBAL" | "RANCHO");
     } catch (err: any) {
       mostrarStatus("error", err.response?.data?.detail || "No se pudo registrar el nuevo rol.");
@@ -177,7 +184,7 @@ export default function ConfiguracionPage() {
     try {
       await axios.patch(
         `${API_URL}/master/config/parametros/${idParametro}`,
-        { valor: paramEdit.valor },
+        { valor: paramEdit.valor.trim() },
         { headers: getHeaders() }
       );
       setParamEdit(null);
@@ -317,7 +324,6 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-
       {activeTab === "permisos" && (
         <div className="space-y-4 animate-fade-in">
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -443,7 +449,6 @@ export default function ConfiguracionPage() {
         </div>
       )}
 
-
       {activeTab === "parametros" && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 space-y-4 animate-fade-in">
           <div className="flex justify-between items-center border-b border-gray-100 pb-3">
@@ -523,10 +528,11 @@ export default function ConfiguracionPage() {
                 <input
                   type="text"
                   required
+                  maxLength={14}
                   value={formRol.nombre}
-                  onChange={(e) => setFormRol({ ...formRol, nombre: e.target.value })}
-                  placeholder="Ej. Auditor de Campo, Supervisor Global"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl outline-none font-medium"
+                  onChange={(e) => setFormRol({ ...formRol, nombre: sanitizarTexto(e.target.value, 14) })}
+                  placeholder="Ej. Auditor (máx 14)"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl outline-none font-medium focus:ring-1 focus:ring-[#264575]"
                 />
               </div>
 
@@ -536,7 +542,7 @@ export default function ConfiguracionPage() {
                   value={formRol.descripcion}
                   onChange={(e) => setFormRol({ ...formRol, descripcion: e.target.value })}
                   placeholder="Breve descripción de responsabilidades..."
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl outline-none font-medium h-20"
+                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl outline-none font-medium h-20 focus:ring-1 focus:ring-[#264575]"
                 />
               </div>
 
@@ -547,9 +553,9 @@ export default function ConfiguracionPage() {
                     id="chkAcceso"
                     checked={formRol.puede_acceder_todos_ranchos}
                     onChange={(e) => setFormRol({ ...formRol, puede_acceder_todos_ranchos: e.target.checked })}
-                    className="w-4 h-4 accent-[#264575]"
+                    className="w-4 h-4 accent-[#264575] cursor-pointer"
                   />
-                  <label htmlFor="chkAcceso" className="font-bold text-gray-700 cursor-pointer">
+                  <label htmlFor="chkAcceso" className="font-bold text-gray-700 cursor-pointer select-none">
                     Permitir acceso multitenant a todos los ranchos
                   </label>
                 </div>
@@ -564,7 +570,7 @@ export default function ConfiguracionPage() {
               >
                 Cancelar
               </button>
-              <button type="submit" className="px-5 py-2 bg-[#264575] text-white rounded-xl font-bold text-xs shadow-md">
+              <button type="submit" className="px-5 py-2 bg-[#264575] hover:bg-[#1e365d] text-white rounded-xl font-bold text-xs shadow-md transition-colors">
                 Guardar Rol
               </button>
             </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import {
   FileText,
@@ -13,7 +14,13 @@ import {
   ShieldCheck,
   CheckCircle,
   XCircle,
-  FileType
+  FileType,
+  AlertTriangle,
+  HeartPulse,
+  ShieldAlert,
+  Layers,
+  Calendar,
+  Loader2
 } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -62,6 +69,7 @@ interface RanchoDetalle {
 }
 
 export default function ReportesGlobalesPage() {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<"actividad" | "rancho">("actividad");
 
   // --- LISTA GENERAL DE RANCHOS PARA SELECTORES ---
@@ -76,7 +84,7 @@ export default function ReportesGlobalesPage() {
   const [actividadLogs, setActividadLogs] = useState<AuditoriaItem[]>([]);
   const [totalRegistros, setTotalRegistros] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
-  const [limit] = useState<number>(15);
+  const limit = 15;
   const [loadingActividad, setLoadingActividad] = useState<boolean>(false);
   const [exportingExcel, setExportingExcel] = useState<boolean>(false);
   const [exportingPdf, setExportingPdf] = useState<boolean>(false);
@@ -103,12 +111,20 @@ export default function ReportesGlobalesPage() {
           headers: getAuthHeader()
         });
         setRanchosList(res.data || []);
+
+        // Si viene un rancho preseleccionado desde la navegación (Dashboard)
+        const stateRanchoId = (location.state as any)?.selectedRanchoId;
+        if (stateRanchoId) {
+          setActiveTab("rancho");
+          setSelectedRanchoId(String(stateRanchoId));
+          fetchReporteRancho(String(stateRanchoId));
+        }
       } catch (error) {
         console.error("Error al cargar lista de ranchos:", error);
       }
     };
     fetchRanchos();
-  }, []);
+  }, [location.state]);
 
   const fetchReporteActividad = async () => {
     setLoadingActividad(true);
@@ -159,7 +175,6 @@ export default function ReportesGlobalesPage() {
     }
   };
 
-  // Exportar a Excel
   const handleExportarExcel = async () => {
     setExportingExcel(true);
     try {
@@ -195,7 +210,6 @@ export default function ReportesGlobalesPage() {
     }
   };
 
-  // Exportar a PDF
   const handleExportarPDF = async () => {
     setExportingPdf(true);
     try {
@@ -220,7 +234,7 @@ export default function ReportesGlobalesPage() {
       link.remove();
 
       setStatusType("success");
-      setStatusMessage("El informe PDF con diseño institucional fue generado con éxito.");
+      setStatusMessage("El informe PDF institucional se generó con éxito.");
       setShowStatusModal(true);
     } catch (error) {
       setStatusType("error");
@@ -301,7 +315,7 @@ export default function ReportesGlobalesPage() {
                 <select
                   value={filterRancho}
                   onChange={(e) => setFilterRancho(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 cursor-pointer"
+                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 cursor-pointer outline-none focus:ring-1 focus:ring-[#264575]"
                 >
                   <option value="">-- Todos los Ranchos --</option>
                   {ranchosList.map((r) => (
@@ -317,7 +331,7 @@ export default function ReportesGlobalesPage() {
                 <select
                   value={filterModulo}
                   onChange={(e) => setFilterModulo(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 cursor-pointer"
+                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 cursor-pointer outline-none focus:ring-1 focus:ring-[#264575]"
                 >
                   <option value="">-- Todos los Módulos --</option>
                   <option value="Auth">Autenticación</option>
@@ -334,7 +348,7 @@ export default function ReportesGlobalesPage() {
                   type="date"
                   value={filterFechaInicio}
                   onChange={(e) => setFilterFechaInicio(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700"
+                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 outline-none focus:ring-1 focus:ring-[#264575]"
                 />
               </div>
 
@@ -344,7 +358,7 @@ export default function ReportesGlobalesPage() {
                   type="date"
                   value={filterFechaFin}
                   onChange={(e) => setFilterFechaFin(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700"
+                  className="w-full px-3 py-2 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-xs font-medium text-gray-700 outline-none focus:ring-1 focus:ring-[#264575]"
                 />
               </div>
             </div>
@@ -355,7 +369,7 @@ export default function ReportesGlobalesPage() {
                   setPage(1);
                   fetchReporteActividad();
                 }}
-                className="px-6 py-2 bg-[#264575] hover:bg-[#1d3356] text-white font-bold rounded-xl text-xs shadow flex items-center space-x-2 transition-all"
+                className="px-6 py-2 bg-[#264575] hover:bg-[#1d3356] text-white font-bold rounded-xl text-xs shadow flex items-center space-x-2 transition-all active:scale-95"
               >
                 <Search className="w-4 h-4" />
                 <span>Aplicar Filtros</span>
@@ -386,7 +400,7 @@ export default function ReportesGlobalesPage() {
                   <tr className="bg-[#264575]/5 border-b border-gray-100 text-[11px] font-black text-[#264575] uppercase tracking-wider">
                     <th className="p-3.5">Fecha / Hora</th>
                     <th className="p-3.5">Usuario</th>
-                    <th className="p-3.5">Rancho </th>
+                    <th className="p-3.5">Rancho</th>
                     <th className="p-3.5">Módulo</th>
                     <th className="p-3.5">Acción</th>
                     <th className="p-3.5">IP</th>
@@ -395,13 +409,16 @@ export default function ReportesGlobalesPage() {
                 <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
                   {loadingActividad ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400 font-medium">
-                        Cargando bitácora de actividad...
+                      <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">
+                        <div className="flex flex-col items-center justify-center space-y-2">
+                          <Loader2 className="w-6 h-6 animate-spin text-[#264575]" />
+                          <span>Cargando bitácora de actividad...</span>
+                        </div>
                       </td>
                     </tr>
                   ) : actividadLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400 font-medium">
+                      <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">
                         No se encontraron registros de auditoría con los filtros aplicados.
                       </td>
                     </tr>
@@ -466,7 +483,7 @@ export default function ReportesGlobalesPage() {
         <div className="space-y-6 animate-fade-in">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
             <label className="block text-sm font-bold text-gray-800 mb-2">
-              Seleccione un Rancho para Generar su Ficha Consolidada
+              Selecciona un Rancho para Generar su Ficha Consolidada
             </label>
             <div className="flex flex-col sm:flex-row gap-3">
               <select
@@ -475,7 +492,7 @@ export default function ReportesGlobalesPage() {
                   setSelectedRanchoId(e.target.value);
                   fetchReporteRancho(e.target.value);
                 }}
-                className="flex-1 px-4 py-2.5 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm font-bold text-gray-700 cursor-pointer"
+                className="flex-1 px-4 py-2.5 bg-[#fff8ed]/20 border border-[#885f3a]/40 rounded-xl text-sm font-bold text-gray-700 cursor-pointer outline-none focus:ring-1 focus:ring-[#264575]"
               >
                 <option value="">-- Seleccionar Rancho --</option>
                 {ranchosList.map((r) => (
@@ -488,11 +505,13 @@ export default function ReportesGlobalesPage() {
           </div>
 
           {loadingRanchoDetalle ? (
-            <div className="bg-white rounded-2xl p-12 text-center text-gray-400 font-medium shadow-md">
-              Cargando resumen consolidado del rancho...
+            <div className="bg-white rounded-2xl p-12 text-center text-gray-400 font-medium shadow-md flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-[#264575] animate-spin" />
+              <span>Extrayendo métricas operativas del esquema del rancho...</span>
             </div>
           ) : ranchoDetalle ? (
             <div className="space-y-6">
+              {/* ENCABEZADO DE LA ENTIDAD */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 flex flex-col md:flex-row justify-between gap-6">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-3">
@@ -501,15 +520,15 @@ export default function ReportesGlobalesPage() {
                     <span
                       className={`px-3 py-0.5 text-xs font-bold rounded-full ${
                         ranchoDetalle.activo
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
+                          ? "bg-green-100 text-green-700 border border-green-200"
+                          : "bg-red-100 text-red-700 border border-red-200"
                       }`}
                     >
                       {ranchoDetalle.activo ? "Rancho Activo" : "Rancho Inactivo"}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 font-medium">
-                    Propietario Legal: <b>{ranchoDetalle.propietario || "No especificado"}</b> • Tel:{" "}
+                    Propietario Legal: <b>{ranchoDetalle.propietario || "No especificado"}</b> • Teléfono:{" "}
                     <b>{ranchoDetalle.telefono || "N/A"}</b>
                   </p>
                 </div>
@@ -521,31 +540,74 @@ export default function ReportesGlobalesPage() {
                 </div>
               </div>
 
+              {/* TARJETAS OPERATIVAS FUNCIONALES (PUNTO 11) */}
               {ranchoDetalle.resumen ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+                  
+                  {/* TOTAL GANADO */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mb-1 text-[#264575]">
+                      <Layers className="w-4 h-4" />
+                    </div>
                     <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Total Ganado</span>
-                    <span className="text-2xl font-black text-[#264575]">{ranchoDetalle.resumen.total_animales}</span>
+                    <span className="text-2xl font-black text-[#264575]">
+                      {(ranchoDetalle.resumen.total_animales ?? 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Animales Activos</span>
-                    <span className="text-2xl font-black text-emerald-600">{ranchoDetalle.resumen.animales_activos}</span>
+
+                  {/* ANIMALES ACTIVOS */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center mb-1 text-emerald-600">
+                      <CheckCircle className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Activos</span>
+                    <span className="text-2xl font-black text-emerald-600">
+                      {(ranchoDetalle.resumen.animales_activos ?? 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+
+                  {/* ENFERMOS */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center mb-1 text-amber-600">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
                     <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Enfermos</span>
-                    <span className="text-2xl font-black text-amber-600">{ranchoDetalle.resumen.animales_enfermos}</span>
+                    <span className="text-2xl font-black text-amber-600">
+                      {(ranchoDetalle.resumen.animales_enfermos ?? 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
+
+                  {/* LOTES ACTIVOS */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-[#fff8ed] flex items-center justify-center mb-1 text-[#885f3a]">
+                      <Building2 className="w-4 h-4" />
+                    </div>
                     <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Lotes Activos</span>
-                    <span className="text-2xl font-black text-[#885f3a]">{ranchoDetalle.resumen.lotes_activos}</span>
+                    <span className="text-2xl font-black text-[#885f3a]">
+                      {(ranchoDetalle.resumen.lotes_activos ?? 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Partos Próximos</span>
-                    <span className="text-2xl font-black text-indigo-600">{ranchoDetalle.resumen.partos_proximos}</span>
+
+                  {/* PARTOS PRÓXIMOS */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center mb-1 text-indigo-600">
+                      <HeartPulse className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Partos Próx.</span>
+                    <span className="text-2xl font-black text-indigo-600">
+                      {(ranchoDetalle.resumen.partos_proximos ?? 0).toLocaleString()}
+                    </span>
                   </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Alertas Sanitarias</span>
-                    <span className="text-2xl font-black text-red-600">{ranchoDetalle.resumen.alertas_sanitarias}</span>
+
+                  {/* ALERTAS SANITARIAS */}
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center flex flex-col items-center justify-between">
+                    <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mb-1 text-red-600">
+                      <ShieldAlert className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-black text-gray-400 uppercase block mb-1">Alertas San.</span>
+                    <span className="text-2xl font-black text-red-600">
+                      {(ranchoDetalle.resumen.alertas_sanitarias ?? 0).toLocaleString()}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -554,6 +616,7 @@ export default function ReportesGlobalesPage() {
                 </div>
               )}
 
+              {/* HISTORIAL ESPECÍFICO DEL RANCHO */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-md p-6 space-y-4">
                 <div className="flex items-center space-x-2 border-b border-gray-100 pb-3">
                   <ShieldCheck className="w-5 h-5 text-[#822420]" />
@@ -594,6 +657,7 @@ export default function ReportesGlobalesPage() {
         </div>
       )}
 
+      {/* MODAL STATUS */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-gray-100 text-center">
